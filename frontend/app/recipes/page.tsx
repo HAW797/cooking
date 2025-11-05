@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,26 +8,94 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { recipes } from "@/lib/mock-data"
-import { Clock, Users, Search } from "lucide-react"
+import { Clock, Users, Search, Loader2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { recipesService } from "@/lib/api/recipes.service"
+import { lookupsService } from "@/lib/api/lookups.service"
+import type { Recipe } from "@/lib/api/recipes.service"
+import type { Cuisine, Dietary, Difficulty } from "@/lib/api/lookups.service"
+
+// Helper to transform API recipe to display format
+interface DisplayRecipe {
+  id: string
+  title: string
+  description: string
+  image: string
+  cookTime: string
+  prepTime: string
+  servings: number
+  difficulty: string
+  cuisine: string
+  dietary: string[]
+  rating: number
+  reviews: number
+}
+
+function transformRecipe(recipe: Recipe): DisplayRecipe {
+  return {
+    id: recipe.recipe_id.toString(),
+    title: recipe.recipe_title,
+    description: recipe.description || "",
+    image: recipe.image_url || "/placeholder.svg",
+    cookTime: recipe.cook_time ? `${recipe.cook_time} mins` : "N/A",
+    prepTime: recipe.prep_time ? `${recipe.prep_time} mins` : "N/A",
+    servings: recipe.servings || 0,
+    difficulty: recipe.difficulty?.difficulty_level || "Medium",
+    cuisine: recipe.cuisine?.cuisine_name || "Unknown",
+    dietary: recipe.dietary?.dietary_name ? [recipe.dietary.dietary_name] : [],
+    rating: recipe.rating?.average_rating || 0,
+    reviews: recipe.rating?.rating_count || 0,
+  }
+}
 
 export default function RecipesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [cuisineFilter, setCuisineFilter] = useState<string>("all")
   const [dietaryFilter, setDietaryFilter] = useState<string>("all")
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all")
+  
+  const [recipes, setRecipes] = useState<DisplayRecipe[]>([])
+  const [cuisines, setCuisines] = useState<Cuisine[]>([])
+  const [dietaryOptions, setDietaryOptions] = useState<Dietary[]>([])
+  const [difficulties, setDifficulties] = useState<Difficulty[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Extract unique values for filters
-  const cuisines = useMemo(() => {
-    const uniqueCuisines = Array.from(new Set(recipes.map((r) => r.cuisine)))
-    return uniqueCuisines.sort()
-  }, [])
+  // Fetch recipes and lookups
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        // Fetch recipes and lookups in parallel
+        const [recipesResponse, lookupsResponse] = await Promise.all([
+          recipesService.getRecipes(),
+          lookupsService.getLookups(),
+        ])
 
-  const dietaryOptions = useMemo(() => {
-    const allDietary = recipes.flatMap((r) => r.dietary)
-    return Array.from(new Set(allDietary)).sort()
+        if (recipesResponse.success && recipesResponse.data) {
+          const transformedRecipes = recipesResponse.data.items.map(transformRecipe)
+          setRecipes(transformedRecipes)
+        } else {
+          setError(recipesResponse.message || "Failed to fetch recipes")
+        }
+
+        if (lookupsResponse.success && lookupsResponse.data) {
+          setCuisines(lookupsResponse.data.cuisines)
+          setDietaryOptions(lookupsResponse.data.dietaries)
+          setDifficulties(lookupsResponse.data.difficulties)
+        }
+      } catch (err) {
+        console.error("Error fetching recipes:", err)
+        setError("Failed to load recipes. Please try again later.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
   }, [])
 
   // Filter recipes
@@ -40,13 +108,15 @@ export default function RecipesPage() {
 
       const matchesCuisine = cuisineFilter === "all" || recipe.cuisine === cuisineFilter
 
-      const matchesDietary = dietaryFilter === "all" || recipe.dietary.includes(dietaryFilter)
+      const matchesDietary = 
+        dietaryFilter === "all" || 
+        recipe.dietary.some(diet => diet === dietaryFilter)
 
       const matchesDifficulty = difficultyFilter === "all" || recipe.difficulty === difficultyFilter
 
       return matchesSearch && matchesCuisine && matchesDietary && matchesDifficulty
     })
-  }, [searchQuery, cuisineFilter, dietaryFilter, difficultyFilter])
+  }, [recipes, searchQuery, cuisineFilter, dietaryFilter, difficultyFilter])
 
   const resetFilters = () => {
     setSearchQuery("")
@@ -61,9 +131,9 @@ export default function RecipesPage() {
 
       <main className="flex-1">
         {/* Page Header */}
-        <section className="py-12 bg-muted/30">
+        <section className="py-10 bg-muted/30">
           <div className="container mx-auto px-4">
-            <h1 className="text-4xl font-bold text-foreground mb-4 text-balance">Recipe Collection</h1>
+            <h1 className="text-4xl font-bold text-foreground mb-4 text-balance">Recipes</h1>
             <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
               Explore our extensive collection of recipes from around the world. Filter by cuisine, dietary preferences,
               and difficulty level to find your perfect dish.
@@ -72,7 +142,7 @@ export default function RecipesPage() {
         </section>
 
         {/* Filters Section */}
-        <section className="py-8 border-b border-border">
+        <section className="pb-8 border-b border-border">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Search */}
@@ -91,14 +161,16 @@ export default function RecipesPage() {
 
               {/* Cuisine Filter */}
               <Select value={cuisineFilter} onValueChange={setCuisineFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Cuisine" />
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {cuisineFilter === "all" ? "All Cuisines" : cuisineFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Cuisines</SelectItem>
                   {cuisines.map((cuisine) => (
-                    <SelectItem key={cuisine} value={cuisine}>
-                      {cuisine}
+                    <SelectItem key={cuisine.cuisine_type_id} value={cuisine.cuisine_name}>
+                      {cuisine.cuisine_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -106,14 +178,16 @@ export default function RecipesPage() {
 
               {/* Dietary Filter */}
               <Select value={dietaryFilter} onValueChange={setDietaryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Dietary" />
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {dietaryFilter === "all" ? "All Dietary" : dietaryFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Dietary</SelectItem>
                   {dietaryOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
+                    <SelectItem key={option.dietary_id} value={option.dietary_name}>
+                      {option.dietary_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -121,8 +195,10 @@ export default function RecipesPage() {
 
               {/* Difficulty Filter */}
               <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Difficulty" />
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {difficultyFilter === "all" ? "All Levels" : difficultyFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Levels</SelectItem>
@@ -152,71 +228,86 @@ export default function RecipesPage() {
         {/* Results */}
         <section className="py-12">
           <div className="container mx-auto px-4">
-            <div className="mb-6">
-              <p className="text-muted-foreground">
-                Showing {filteredRecipes.length} of {recipes.length} recipes
-              </p>
-            </div>
-
-            {filteredRecipes.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading recipes...</span>
+              </div>
+            ) : error ? (
               <div className="text-center py-12">
-                <p className="text-lg text-muted-foreground mb-4">No recipes found matching your filters.</p>
-                <Button onClick={resetFilters} variant="outline">
-                  Clear filters
+                <p className="text-lg text-destructive mb-4">{error}</p>
+                <Button onClick={() => window.location.reload()} variant="outline">
+                  Try Again
                 </Button>
               </div>
             ) : (
+              <>
+                <div className="mb-6">
+                  <p className="text-muted-foreground">
+                    Showing {filteredRecipes.length} of {recipes.length} recipes
+                  </p>
+                </div>
+
+                {filteredRecipes.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-lg text-muted-foreground mb-4">No recipes found matching your filters.</p>
+                    <Button onClick={resetFilters} variant="outline">
+                      Clear filters
+                    </Button>
+                  </div>
+                ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredRecipes.map((recipe) => (
-                  <Card key={recipe.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="relative h-56 w-full">
-                      <Image
-                        src={recipe.image || "/placeholder.svg"}
-                        alt={recipe.title}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className="absolute top-3 right-3">
-                        <Badge
-                          variant={recipe.difficulty === "Easy" ? "secondary" : "default"}
-                          className="bg-background/90 backdrop-blur"
-                        >
-                          {recipe.difficulty}
-                        </Badge>
+                  <Link key={recipe.id} href={`/recipes/${recipe.id}`}>
+                    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full">
+                      <div className="relative h-56 w-full">
+                        <Image
+                          src={recipe.image || "/placeholder.svg"}
+                          alt={recipe.title}
+                          fill
+                          className="object-cover -pt-6"
+                        />
+                        <div className="absolute top-3 right-3">
+                          <Badge
+                            variant={recipe.difficulty === "Easy" ? "secondary" : "default"}
+                            className="bg-primary/90 backdrop-blur"
+                          >
+                            {recipe.difficulty}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                    <CardHeader>
-                      <CardTitle className="text-xl text-balance">{recipe.title}</CardTitle>
-                      <CardDescription className="leading-relaxed">{recipe.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            <span>{recipe.cookTime}</span>
+                      <CardHeader>
+                        <CardTitle className="text-xl text-balance">{recipe.title}</CardTitle>
+                        <CardDescription className="leading-relaxed">{recipe.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              <span>{recipe.cookTime}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users className="h-4 w-4" />
+                              <span>{recipe.servings} servings</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="h-4 w-4" />
-                            <span>{recipe.servings} servings</span>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline">{recipe.cuisine}</Badge>
+                            {recipe.dietary.map((diet) => (
+                              <Badge key={diet} variant="outline">
+                                {diet}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline">{recipe.cuisine}</Badge>
-                          {recipe.dietary.map((diet) => (
-                            <Badge key={diet} variant="outline">
-                              {diet}
-                            </Badge>
-                          ))}
-                        </div>
-                        <Button asChild className="w-full">
-                          <Link href={`/recipes/${recipe.id}`}>View Recipe</Link>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </div>
+                )}
+              </>
             )}
           </div>
         </section>

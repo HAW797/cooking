@@ -53,7 +53,7 @@ if (!empty($errors)) {
 $checkStmt = $pdo->prepare('SELECT user_id FROM user WHERE email = ?');
 $checkStmt->execute([$email]);
 if ($checkStmt->fetch()) {
-    error_response('Email already registered', 409);
+    error_response('Email already registered', 422);
 }
 
 // Hash password and create user

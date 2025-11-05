@@ -1,11 +1,31 @@
 <?php
 require_once __DIR__ . '/../config.php';
 
-// CORS for demo (adjust for production)
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+// CORS configuration - adjust for production
+$allowedOrigins = [
+    'http://localhost:3000',  // Next.js development
+    'http://localhost:3001',  // Alternative Next.js port
+    // Add your production domain here
+    // 'https://yourproductiondomain.com',
+];
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+// Check if the origin is allowed
+if (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: $origin");
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    // For development, allow all origins (comment out in production)
+    header('Access-Control-Allow-Origin: *');
+}
+
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Content-Type: application/json');
+header('Access-Control-Max-Age: 86400'); // Cache preflight for 24 hours
+header('Content-Type: application/json; charset=UTF-8');
+
+// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
@@ -28,7 +48,10 @@ function json_response($data, int $status = 200): void
  */
 function success_response(string $message, $data = null, int $status = 200): void
 {
-    $response = ['message' => $message];
+    $response = [
+        'success' => true,
+        'message' => $message
+    ];
     if ($data !== null) {
         $response['data'] = $data;
     }
@@ -40,7 +63,11 @@ function success_response(string $message, $data = null, int $status = 200): voi
  */
 function error_response(string $message, int $status = 400): void
 {
-    json_response(['message' => $message, 'error' => $message], $status);
+    json_response([
+        'success' => false,
+        'message' => $message,
+        'error' => $message
+    ], $status);
 }
 
 function read_json_body(): array

@@ -299,7 +299,7 @@ export default function CommunityPage() {
         cookTime,
         servings: Number.parseInt(servings),
         author: user?.name || "Anonymous",
-        authorId: user?.id || "unknown",
+        authorId: user?.id.toString() || "unknown",
         likes: 0,
         createdAt: new Date().toISOString().split("T")[0],
         instructions: filteredInstructions,
@@ -345,7 +345,7 @@ export default function CommunityPage() {
         <Header />
 
         <main className="flex-1">
-          <section className="py-12 bg-muted/30">
+          <section className="py-10 bg-muted/30">
             <div className="container mx-auto px-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
@@ -355,7 +355,7 @@ export default function CommunityPage() {
                     community members.
                   </p>
                 </div>
-                <Button onClick={() => setModalOpen(true)} size="lg" className="flex-shrink-0">
+                <Button onClick={() => setModalOpen(true)} size="lg" className="shrink-0">
                   <Plus className="mr-2 h-5 w-5" />
                   Share Recipe
                 </Button>
@@ -372,7 +372,7 @@ export default function CommunityPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {recipes.map((recipe) => (
                   <Card key={recipe.id} className="overflow-hidden hover:shadow-lg transition-shadow relative">
-                    {user?.id === recipe.authorId && (
+                    {user?.id.toString() === recipe.authorId && (
                       <div className="absolute top-3 right-3 z-10 flex gap-2">
                         <Button
                           variant="secondary"
@@ -565,7 +565,7 @@ export default function CommunityPage() {
                 <div className="space-y-2">
                   {instructions.map((instruction, index) => (
                     <div key={index} className="flex gap-2">
-                      <div className="flex-shrink-0 w-8 h-10 flex items-center justify-center bg-muted rounded text-sm font-medium">
+                      <div className="shrink-0 w-8 h-10 flex items-center justify-center bg-muted rounded text-sm font-medium">
                         {index + 1}
                       </div>
                       <Textarea
@@ -581,7 +581,7 @@ export default function CommunityPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => removeInstruction(index)}
-                          className="flex-shrink-0"
+                          className="shrink-0"
                         >
                           <X className="h-4 w-4" />
                         </Button>

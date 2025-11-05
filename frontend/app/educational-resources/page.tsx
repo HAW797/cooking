@@ -95,7 +95,7 @@ export default function EducationalResourcesPage() {
 
       <main className="flex-1">
         {/* Page Header */}
-        <section className="py-12 bg-muted/30">
+        <section className="py-10 bg-muted/30">
           <div className="container mx-auto px-4">
             <h1 className="text-4xl font-bold text-foreground mb-4 text-balance">Educational Resources</h1>
             <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
@@ -180,7 +180,7 @@ export default function EducationalResourcesPage() {
         </section>
 
         {/* Video Resources */}
-        <section className="py-12 bg-muted/30">
+        <section className="py-10 bg-muted/30">
           <div className="container mx-auto px-4">
             <h2 className="text-2xl font-bold text-foreground mb-6">Educational Videos</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -1,7 +1,9 @@
 <?php
 /**
- * Get recipes collection with optional filters
+ * Get recipes collection with optional filters or a single recipe by ID
  * GET /api/recipes.php
+ * GET /api/recipes.php?id=1
+ * GET /api/recipes.php?featured=1 (top 5 by rating)
  * GET /api/recipes.php?cuisine_type_id=1&dietary_id=2&difficulty_id=1
  */
 require_once __DIR__ . '/../../api/bootstrap.php';
@@ -11,6 +13,20 @@ $pdo = get_pdo();
 // Build WHERE clause for filters
 $whereConditions = [];
 $params = [];
+$orderBy = 'r.created_at DESC';
+$limit = '';
+
+// Check if requesting featured recipes (top rated)
+if (!empty($_GET['featured'])) {
+    $orderBy = 'avg_rating DESC, rating_count DESC';
+    $limit = 'LIMIT 5';
+}
+
+// Check if requesting a single recipe by ID
+if (!empty($_GET['id'])) {
+    $whereConditions[] = 'r.recipe_id = ?';
+    $params[] = (int)$_GET['id'];
+}
 
 // Filter by cuisine type
 if (!empty($_GET['cuisine_type_id'])) {
@@ -30,7 +46,7 @@ if (!empty($_GET['difficulty_id'])) {
     $params[] = (int)$_GET['difficulty_id'];
 }
 
-// Build SQL query - include all IDs and related data
+// Build SQL query - include all IDs and related data, plus rating for sorting
 $sql = 'SELECT r.recipe_id, 
                r.recipe_title, 
                r.description, 
@@ -46,18 +62,26 @@ $sql = 'SELECT r.recipe_id,
                r.dietary_id,
                d.dietary_name,
                r.difficulty_id,
-               df.difficulty_level
+               df.difficulty_level,
+               COALESCE(AVG(rr.rating), 0) as avg_rating,
+               COUNT(rr.rating_id) as rating_count
         FROM recipe r
         LEFT JOIN cuisine_type ct ON r.cuisine_type_id = ct.cuisine_type_id
         LEFT JOIN dietary d ON r.dietary_id = d.dietary_id
-        LEFT JOIN difficulty df ON r.difficulty_id = df.difficulty_id';
+        LEFT JOIN difficulty df ON r.difficulty_id = df.difficulty_id
+        LEFT JOIN recipe_ratings rr ON r.recipe_id = rr.recipe_id';
 
 // Add WHERE clause if filters exist
 if (!empty($whereConditions)) {
     $sql .= ' WHERE ' . implode(' AND ', $whereConditions);
 }
 
-$sql .= ' ORDER BY r.created_at DESC';
+$sql .= ' GROUP BY r.recipe_id, r.recipe_title, r.description, r.image_url, r.prep_time, r.cook_time, r.servings, r.instructions, r.created_at, r.updated_at, r.cuisine_type_id, ct.cuisine_name, r.dietary_id, d.dietary_name, r.difficulty_id, df.difficulty_level';
+$sql .= ' ORDER BY ' . $orderBy;
+
+if ($limit) {
+    $sql .= ' ' . $limit;
+}
 
 // Execute query
 $stmt = $pdo->prepare($sql);
@@ -112,21 +136,25 @@ foreach ($recipesRaw as $recipe) {
         $formattedRecipe['difficulty'] = null;
     }
     
-    // Add rating data (no user_id - just aggregate ratings)
-    $ratingStmt = $pdo->prepare('SELECT AVG(rating) as avg_rating, COUNT(*) as rating_count FROM recipe_ratings WHERE recipe_id = ?');
-    $ratingStmt->execute([$recipeId]);
-    $ratingData = $ratingStmt->fetch();
-    
+    // Add rating data (already aggregated in main query)
     $formattedRecipe['rating'] = [
-        'average_rating' => $ratingData['avg_rating'] ? round((float)$ratingData['avg_rating'], 2) : 0,
-        'rating_count' => (int)$ratingData['rating_count']
+        'average_rating' => $recipe['avg_rating'] ? round((float)$recipe['avg_rating'], 2) : 0,
+        'rating_count' => (int)$recipe['rating_count']
     ];
     
     $recipes[] = $formattedRecipe;
 }
 
 // Return success response
-success_response('Recipes retrieved successfully', [
-    'items' => $recipes,
-    'count' => count($recipes)
-]);
+// If requesting a single recipe by ID, return just that recipe
+if (!empty($_GET['id'])) {
+    if (empty($recipes)) {
+        error_response('Recipe not found', 404);
+    }
+    success_response('Recipe retrieved successfully', $recipes[0]);
+} else {
+    success_response('Recipes retrieved successfully', [
+        'items' => $recipes,
+        'count' => count($recipes)
+    ]);
+}

@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { type User, getAuthState, login as authLogin, register as authRegister, logout as authLogout } from "@/lib/auth"
+import { type User, getAuthState, login as authLogin, register as authRegister, logout as authLogout, updateActivity } from "@/lib/auth"
 
 interface AuthContextType {
   user: User | null
@@ -14,27 +14,49 @@ interface AuthContextType {
     firstName: string,
     lastName: string,
   ) => Promise<{ success: boolean; message: string }>
-  logout: () => void
+  logout: () => Promise<void>
   loading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [loading, setLoading] = useState(true)
+  // Load auth state immediately (synchronous)
+  const initialState = getAuthState()
+  const [user, setUser] = useState<User | null>(initialState.user)
+  const [isAuthenticated, setIsAuthenticated] = useState(initialState.isAuthenticated)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Load auth state on mount
+    // Revalidate auth state on mount (in case of stale data)
     const state = getAuthState()
+    if (state.user !== user || state.isAuthenticated !== isAuthenticated) {
     setUser(state.user)
     setIsAuthenticated(state.isAuthenticated)
-    setLoading(false)
-  }, [])
+    }
+
+    // Track user activity for session management
+    if (state.isAuthenticated) {
+      const handleActivity = () => updateActivity()
+      
+      // Listen to user activity events
+      window.addEventListener('mousemove', handleActivity)
+      window.addEventListener('keydown', handleActivity)
+      window.addEventListener('click', handleActivity)
+      window.addEventListener('scroll', handleActivity)
+
+      // Cleanup event listeners
+      return () => {
+        window.removeEventListener('mousemove', handleActivity)
+        window.removeEventListener('keydown', handleActivity)
+        window.removeEventListener('click', handleActivity)
+        window.removeEventListener('scroll', handleActivity)
+      }
+    }
+  }, [isAuthenticated])
 
   const login = async (email: string, password: string) => {
-    const result = authLogin(email, password)
+    const result = await authLogin(email, password)
     if (result.success && result.user) {
       setUser(result.user)
       setIsAuthenticated(true)
@@ -43,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const register = async (email: string, password: string, firstName: string, lastName: string) => {
-    const result = authRegister(email, password, firstName, lastName)
+    const result = await authRegister(email, password, firstName, lastName)
     if (result.success && result.user) {
       setUser(result.user)
       setIsAuthenticated(true)
@@ -51,8 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result
   }
 
-  const logout = () => {
-    authLogout()
+  const logout = async () => {
+    await authLogout()
     setUser(null)
     setIsAuthenticated(false)
   }

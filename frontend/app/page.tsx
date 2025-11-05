@@ -1,3 +1,6 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { CookieConsent } from "@/components/cookie-consent"
@@ -8,8 +11,27 @@ import { Button } from "@/components/ui/button"
 import { ChefHat, Users, BookOpen, Award } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
+import { AuthModal } from "@/components/auth-modal"
 
 export default function HomePage() {
+  const { isAuthenticated } = useAuth()
+  const router = useRouter()
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleJoinCommunity = () => {
+    if (isAuthenticated) {
+      router.push("/community")
+    } else {
+      setAuthModalOpen(true)
+    }
+  }
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -38,8 +60,8 @@ export default function HomePage() {
                 <Button size="lg" asChild>
                   <Link href="/recipes">Explore Recipes</Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <Link href="/community">Join Community</Link>
+                <Button size="lg" variant="outline" onClick={handleJoinCommunity}>
+                  {mounted && isAuthenticated ? "Explore Community" : "Join Community"}
                 </Button>
               </div>
             </div>
@@ -113,6 +135,7 @@ export default function HomePage() {
       <Footer />
       <CookieConsent />
       <JoinUsModal />
+      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} mode="register" />
     </div>
   )
 }

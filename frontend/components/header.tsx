@@ -1,9 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
-import { Menu, X, ChefHat } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Menu, X, ChefHat, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/auth-context"
 import { AuthModal } from "@/components/auth-modal"
 
@@ -11,7 +17,12 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<"login" | "register">("login")
-  const { isAuthenticated, user, logout } = useAuth()
+  const { isAuthenticated, user, logout, loading } = useAuth()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const openAuthModal = (mode: "login" | "register") => {
     setAuthMode(mode)
@@ -29,16 +40,13 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <div className="hidden items-center gap-6 md:flex">
-            <Link href="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-              Home
-            </Link>
             <Link href="/about" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
               About Us
             </Link>
             <Link href="/recipes" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-              Recipe Collection
+              Recipes
             </Link>
-            {isAuthenticated && (
+            {mounted && isAuthenticated && (
               <Link
                 href="/community"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors"
@@ -46,18 +54,24 @@ export function Header() {
                 Community Cookbook
               </Link>
             )}
-            <Link
-              href="/resources"
-              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
-            >
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors outline-none">
+                Resources
+                <ChevronDown className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem asChild>
+                  <Link href="/resources" className="cursor-pointer">
               Culinary Resources
             </Link>
-            <Link
-              href="/educational-resources"
-              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
-            >
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/educational-resources" className="cursor-pointer">
               Educational Resources
             </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Link href="/contact" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
               Contact Us
             </Link>
@@ -65,7 +79,9 @@ export function Header() {
 
           {/* Auth Buttons */}
           <div className="hidden items-center gap-3 md:flex">
-            {isAuthenticated ? (
+            {!mounted || loading ? (
+              <div className="w-[140px] h-9" />
+            ) : isAuthenticated ? (
               <>
                 <span className="text-sm text-muted-foreground">Welcome, {user?.firstName}</span>
                 <Button onClick={logout} variant="outline" size="sm">
@@ -99,13 +115,6 @@ export function Header() {
           <div className="border-t border-border bg-background md:hidden">
             <div className="container mx-auto flex flex-col gap-4 px-4 py-4">
               <Link
-                href="/"
-                className="text-sm font-medium text-foreground hover:text-primary transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Home
-              </Link>
-              <Link
                 href="/about"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
@@ -117,9 +126,9 @@ export function Header() {
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Recipe Collection
+                Recipes
               </Link>
-              {isAuthenticated && (
+              {mounted && isAuthenticated && (
                 <Link
                   href="/community"
                   className="text-sm font-medium text-foreground hover:text-primary transition-colors"
@@ -128,20 +137,23 @@ export function Header() {
                   Community Cookbook
                 </Link>
               )}
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">Resources</div>
               <Link
                 href="/resources"
-                className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  className="text-sm font-medium text-foreground hover:text-primary transition-colors pl-4 block"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Culinary Resources
               </Link>
               <Link
                 href="/educational-resources"
-                className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  className="text-sm font-medium text-foreground hover:text-primary transition-colors pl-4 block"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Educational Resources
               </Link>
+              </div>
               <Link
                 href="/contact"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors"
@@ -150,7 +162,9 @@ export function Header() {
                 Contact Us
               </Link>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
-                {isAuthenticated ? (
+                {!mounted || loading ? (
+                  <div className="w-full h-9" />
+                ) : isAuthenticated ? (
                   <>
                     <span className="text-sm text-muted-foreground">Welcome, {user?.firstName}</span>
                     <Button onClick={logout} variant="outline" size="sm" className="w-full bg-transparent">

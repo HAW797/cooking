@@ -1,24 +1,105 @@
+"use client"
+
+import { useState, useEffect, use } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { recipes } from "@/lib/mock-data"
-import { Clock, ChefHat, Users, Star, ArrowLeft } from "lucide-react"
+import { Clock, ChefHat, Users, Star, ArrowLeft, Loader2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { recipesService } from "@/lib/api/recipes.service"
+import type { Recipe } from "@/lib/api/recipes.service"
 
-export function generateStaticParams() {
-  return recipes.map((recipe) => ({
-    id: recipe.id,
-  }))
+interface DisplayRecipe {
+  id: string
+  title: string
+  description: string
+  image: string
+  cookTime: string
+  prepTime: string
+  servings: number
+  difficulty: string
+  cuisine: string
+  dietary: string[]
+  ingredients: string[]
+  instructions: string[]
+  rating: number
+  reviews: number
 }
 
-export default function RecipeDetailPage({ params }: { params: { id: string } }) {
-  const recipe = recipes.find((r) => r.id === params.id)
+function transformRecipe(recipe: Recipe): DisplayRecipe {
+  // Parse instructions from text to array
+  const instructions = recipe.instructions
+    ? recipe.instructions.split("\n").filter((line) => line.trim() !== "")
+    : []
 
-  if (!recipe) {
+  return {
+    id: recipe.recipe_id.toString(),
+    title: recipe.recipe_title,
+    description: recipe.description || "",
+    image: recipe.image_url || "/placeholder.svg",
+    cookTime: recipe.cook_time ? `${recipe.cook_time} mins` : "N/A",
+    prepTime: recipe.prep_time ? `${recipe.prep_time} mins` : "N/A",
+    servings: recipe.servings || 0,
+    difficulty: recipe.difficulty?.difficulty_level || "Medium",
+    cuisine: recipe.cuisine?.cuisine_name || "Unknown",
+    dietary: recipe.dietary?.dietary_name ? [recipe.dietary.dietary_name] : [],
+    ingredients: [], // Not available in current schema
+    instructions,
+    rating: recipe.rating?.average_rating || 0,
+    reviews: recipe.rating?.rating_count || 0,
+  }
+}
+
+export default function RecipeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
+  const [recipe, setRecipe] = useState<DisplayRecipe | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchRecipe() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const response = await recipesService.getRecipeById(parseInt(resolvedParams.id))
+
+        if (response.success && response.data) {
+          setRecipe(transformRecipe(response.data))
+        } else {
+          setError(response.message || "Failed to fetch recipe")
+        }
+      } catch (err) {
+        console.error("Error fetching recipe:", err)
+        setError("Failed to load recipe. Please try again later.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRecipe()
+  }, [resolvedParams.id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="text-muted-foreground">Loading recipe...</span>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (error || !recipe) {
     notFound()
   }
 
@@ -89,50 +170,31 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
                   </CardContent>
                 </Card>
               </div>
-
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Recipe by <span className="font-medium text-foreground">{recipe.author}</span>
-                </p>
-              </div>
             </div>
           </div>
 
           {/* Ingredients & Instructions */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
-            {/* Ingredients */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Ingredients</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {recipe.ingredients.map((ingredient, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <span className="text-primary mt-1">•</span>
-                      <span className="leading-relaxed">{ingredient}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
+          <div className="grid grid-cols-1 gap-8 mt-12">
             {/* Instructions */}
             <Card>
               <CardHeader>
                 <CardTitle>Instructions</CardTitle>
               </CardHeader>
               <CardContent>
-                <ol className="space-y-4">
-                  {recipe.instructions.map((instruction, index) => (
-                    <li key={index} className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
-                        {index + 1}
-                      </span>
-                      <span className="leading-relaxed pt-0.5">{instruction}</span>
-                    </li>
-                  ))}
-                </ol>
+                {recipe.instructions.length > 0 ? (
+                  <ol className="space-y-4">
+                    {recipe.instructions.map((instruction, index) => (
+                      <li key={index} className="flex gap-3">
+                        <span className="shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+                          {index + 1}
+                        </span>
+                        <span className="leading-relaxed pt-0.5">{instruction}</span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="text-muted-foreground">No instructions available.</p>
+                )}
               </CardContent>
             </Card>
           </div>
