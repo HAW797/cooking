@@ -62,14 +62,12 @@ export default function RecipesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch recipes and lookups
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true)
         setError(null)
         
-        // Fetch recipes and lookups in parallel
         const [recipesResponse, lookupsResponse] = await Promise.all([
           recipesService.getRecipes(),
           lookupsService.getLookups(),

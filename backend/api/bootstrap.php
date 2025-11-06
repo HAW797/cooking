@@ -1,41 +1,30 @@
 <?php
 require_once __DIR__ . '/../config.php';
 
-// CORS configuration - adjust for production
 $allowedOrigins = [
-    'http://localhost:3000',  // Next.js development
-    'http://localhost:3001',  // Alternative Next.js port
-    // Add your production domain here
-    // 'https://yourproductiondomain.com',
+    'http://localhost:3000',
+    'http://localhost:3001',
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-// Check if the origin is allowed
 if (in_array($origin, $allowedOrigins)) {
     header("Access-Control-Allow-Origin: $origin");
     header('Access-Control-Allow-Credentials: true');
 } else {
-    // For development, allow all origins (comment out in production)
     header('Access-Control-Allow-Origin: *');
 }
 
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Max-Age: 86400'); // Cache preflight for 24 hours
+header('Access-Control-Max-Age: 86400');
 header('Content-Type: application/json; charset=UTF-8');
 
-// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-/**
- * Send JSON response with standard format
- * Success: { "message": "...", "data": {...} }
- * Error: { "message": "...", "error": "..." }
- */
 function json_response($data, int $status = 200): void
 {
     http_response_code($status);
@@ -43,9 +32,6 @@ function json_response($data, int $status = 200): void
     exit;
 }
 
-/**
- * Send success response with message and data
- */
 function success_response(string $message, $data = null, int $status = 200): void
 {
     $response = [
@@ -58,9 +44,6 @@ function success_response(string $message, $data = null, int $status = 200): voi
     json_response($response, $status);
 }
 
-/**
- * Send error response with message
- */
 function error_response(string $message, int $status = 400): void
 {
     json_response([
@@ -83,7 +66,6 @@ function bearer_token(): ?string
     if (stripos($hdr, 'Bearer ') === 0) {
         return trim(substr($hdr, 7));
     }
-    // allow token query param for convenience
     if (!empty($_GET['token'])) return (string)$_GET['token'];
     return null;
 }
@@ -104,9 +86,6 @@ function revoke_session_token(string $token): void
     $stmt->execute([$token]);
 }
 
-/**
- * Require authentication - returns user data or sends error response
- */
 function require_auth(): array
 {
     $pdo = get_pdo();

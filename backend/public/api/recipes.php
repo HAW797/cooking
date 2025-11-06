@@ -1,52 +1,39 @@
 <?php
-/**
- * Get recipes collection with optional filters or a single recipe by ID
- * GET /api/recipes.php
- * GET /api/recipes.php?id=1
- * GET /api/recipes.php?featured=1 (top 5 by rating)
- * GET /api/recipes.php?cuisine_type_id=1&dietary_id=2&difficulty_id=1
- */
+
 require_once __DIR__ . '/../../api/bootstrap.php';
 
 $pdo = get_pdo();
 
-// Build WHERE clause for filters
 $whereConditions = [];
 $params = [];
 $orderBy = 'r.created_at DESC';
 $limit = '';
 
-// Check if requesting featured recipes (top rated)
 if (!empty($_GET['featured'])) {
     $orderBy = 'avg_rating DESC, rating_count DESC';
     $limit = 'LIMIT 5';
 }
 
-// Check if requesting a single recipe by ID
 if (!empty($_GET['id'])) {
     $whereConditions[] = 'r.recipe_id = ?';
     $params[] = (int)$_GET['id'];
 }
 
-// Filter by cuisine type
 if (!empty($_GET['cuisine_type_id'])) {
     $whereConditions[] = 'r.cuisine_type_id = ?';
     $params[] = (int)$_GET['cuisine_type_id'];
 }
 
-// Filter by dietary preference
 if (!empty($_GET['dietary_id'])) {
     $whereConditions[] = 'r.dietary_id = ?';
     $params[] = (int)$_GET['dietary_id'];
 }
 
-// Filter by difficulty
 if (!empty($_GET['difficulty_id'])) {
     $whereConditions[] = 'r.difficulty_id = ?';
     $params[] = (int)$_GET['difficulty_id'];
 }
 
-// Build SQL query - include all IDs and related data, plus rating for sorting
 $sql = 'SELECT r.recipe_id, 
                r.recipe_title, 
                r.description, 
@@ -71,7 +58,6 @@ $sql = 'SELECT r.recipe_id,
         LEFT JOIN difficulty df ON r.difficulty_id = df.difficulty_id
         LEFT JOIN recipe_ratings rr ON r.recipe_id = rr.recipe_id';
 
-// Add WHERE clause if filters exist
 if (!empty($whereConditions)) {
     $sql .= ' WHERE ' . implode(' AND ', $whereConditions);
 }
@@ -83,12 +69,10 @@ if ($limit) {
     $sql .= ' ' . $limit;
 }
 
-// Execute query
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $recipesRaw = $stmt->fetchAll();
 
-// Format recipes with structured related data
 $recipes = [];
 foreach ($recipesRaw as $recipe) {
     $recipeId = (int)$recipe['recipe_id'];
@@ -106,7 +90,6 @@ foreach ($recipesRaw as $recipe) {
         'updated_at' => $recipe['updated_at'],
     ];
     
-    // Add cuisine data with ID
     if ($recipe['cuisine_type_id']) {
         $formattedRecipe['cuisine'] = [
             'cuisine_type_id' => (int)$recipe['cuisine_type_id'],
@@ -116,7 +99,6 @@ foreach ($recipesRaw as $recipe) {
         $formattedRecipe['cuisine'] = null;
     }
     
-    // Add dietary data with ID
     if ($recipe['dietary_id']) {
         $formattedRecipe['dietary'] = [
             'dietary_id' => (int)$recipe['dietary_id'],
@@ -126,7 +108,6 @@ foreach ($recipesRaw as $recipe) {
         $formattedRecipe['dietary'] = null;
     }
     
-    // Add difficulty data with ID
     if ($recipe['difficulty_id']) {
         $formattedRecipe['difficulty'] = [
             'difficulty_id' => (int)$recipe['difficulty_id'],
@@ -136,7 +117,6 @@ foreach ($recipesRaw as $recipe) {
         $formattedRecipe['difficulty'] = null;
     }
     
-    // Add rating data (already aggregated in main query)
     $formattedRecipe['rating'] = [
         'average_rating' => $recipe['avg_rating'] ? round((float)$recipe['avg_rating'], 2) : 0,
         'rating_count' => (int)$recipe['rating_count']
@@ -145,8 +125,6 @@ foreach ($recipesRaw as $recipe) {
     $recipes[] = $formattedRecipe;
 }
 
-// Return success response
-// If requesting a single recipe by ID, return just that recipe
 if (!empty($_GET['id'])) {
     if (empty($recipes)) {
         error_response('Recipe not found', 404);

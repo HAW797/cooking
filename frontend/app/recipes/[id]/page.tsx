@@ -31,7 +31,6 @@ interface DisplayRecipe {
 }
 
 function transformRecipe(recipe: Recipe): DisplayRecipe {
-  // Parse instructions from text to array
   const instructions = recipe.instructions
     ? recipe.instructions.split("\n").filter((line) => line.trim() !== "")
     : []
@@ -47,7 +46,7 @@ function transformRecipe(recipe: Recipe): DisplayRecipe {
     difficulty: recipe.difficulty?.difficulty_level || "Medium",
     cuisine: recipe.cuisine?.cuisine_name || "Unknown",
     dietary: recipe.dietary?.dietary_name ? [recipe.dietary.dietary_name] : [],
-    ingredients: [], // Not available in current schema
+    ingredients: [],
     instructions,
     rating: recipe.rating?.average_rating || 0,
     reviews: recipe.rating?.rating_count || 0,
@@ -173,9 +172,7 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
 
-          {/* Ingredients & Instructions */}
           <div className="grid grid-cols-1 gap-8 mt-12">
-            {/* Instructions */}
             <Card>
               <CardHeader>
                 <CardTitle>Instructions</CardTitle>

@@ -22,10 +22,10 @@ export interface AuthState {
 
 const AUTH_STORAGE_KEY = "foodfusion_auth"
 const USER_STORAGE_KEY = "foodfusion_user"
-const LOCKOUT_DURATION = 3 * 60 * 1000 // 3 minutes in milliseconds
+const LOCKOUT_DURATION = 3 * 60 * 1000
 const MAX_FAILED_ATTEMPTS = 3
-const SESSION_TIMEOUT = 30 * 60 * 1000 // 30 minutes of inactivity
-const REMEMBER_ME_DURATION = 30 * 24 * 60 * 60 * 1000 // 30 days
+const SESSION_TIMEOUT = 30 * 60 * 1000
+const REMEMBER_ME_DURATION = 30 * 24 * 60 * 60 * 1000
 
 export function getAuthState(): AuthState {
   if (typeof window === "undefined") {
@@ -41,7 +41,6 @@ export function getAuthState(): AuthState {
 
   const stored = localStorage.getItem(AUTH_STORAGE_KEY)
   if (!stored) {
-    // Check if token exists (legacy or refresh scenario)
     const token = getAuthToken()
     const userStr = localStorage.getItem(USER_STORAGE_KEY)
     
@@ -57,7 +56,6 @@ export function getAuthState(): AuthState {
           lastActivity: Date.now(),
         }
       } catch {
-        // Invalid user data, clear everything
         removeAuthToken()
         localStorage.removeItem(USER_STORAGE_KEY)
       }
@@ -76,11 +74,9 @@ export function getAuthState(): AuthState {
   try {
     const state = JSON.parse(stored)
     
-    // Check if session has expired
     if (state.isAuthenticated && !state.rememberMe) {
       const timeSinceLastActivity = Date.now() - state.lastActivity
       if (timeSinceLastActivity > SESSION_TIMEOUT) {
-        // Session expired, clear everything
         removeAuthToken()
         localStorage.removeItem(AUTH_STORAGE_KEY)
         localStorage.removeItem(USER_STORAGE_KEY)
@@ -111,7 +107,6 @@ export function getAuthState(): AuthState {
 export function setAuthState(state: AuthState) {
   if (typeof window === "undefined") return
   
-  // Update last activity timestamp
   const stateWithActivity = {
     ...state,
     lastActivity: Date.now(),
@@ -119,7 +114,6 @@ export function setAuthState(state: AuthState) {
   
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(stateWithActivity))
   
-  // Also store user separately for easier access
   if (state.user) {
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(state.user))
   } else {
@@ -165,7 +159,6 @@ export async function login(
   password: string,
   rememberMe: boolean = false
 ): Promise<{ success: boolean; message: string; user?: User }> {
-  // Check if account is locked
   if (isAccountLocked()) {
     const remainingMs = getRemainingLockoutTime()
     const remainingMinutes = Math.ceil(remainingMs / 60000)
@@ -178,13 +171,11 @@ export async function login(
   const state = getAuthState()
 
   try {
-    // Call backend API
     const response = await authService.login({ email, password })
 
     if (response.data) {
       const { token, user: apiUser } = response.data
 
-      // Transform backend user to frontend user format
       const user: User = {
         id: apiUser.user_id,
         email: apiUser.email,
@@ -193,10 +184,8 @@ export async function login(
         lastName: apiUser.last_name,
       }
 
-      // Store token
       setAuthToken(token)
 
-      // Update auth state
       setAuthState({
         user,
         isAuthenticated: true,
@@ -209,10 +198,8 @@ export async function login(
       return { success: true, message: response.message || "Login successful!", user }
     }
 
-    // Should not reach here, but handle just in case
     throw new Error("Invalid response from server")
   } catch (error) {
-    // Failed login
     const apiError = error as ApiError
     const newFailedAttempts = state.failedAttempts + 1
     const shouldLockout = newFailedAttempts >= MAX_FAILED_ATTEMPTS
@@ -248,7 +235,6 @@ export async function register(
   lastName: string
 ): Promise<{ success: boolean; message: string; user?: User }> {
   try {
-    // Call backend API
     const response = await authService.register({
       email,
       password,
@@ -259,7 +245,6 @@ export async function register(
     if (response.data) {
       const { user_id, email: userEmail } = response.data
 
-      // After registration, automatically log in with remember me enabled
       const loginResult = await login(email, password, true)
       
       if (loginResult.success) {
@@ -270,7 +255,6 @@ export async function register(
         }
       }
 
-      // If auto-login fails, still return success but ask user to login
       return {
         success: true,
         message: "Registration successful! Please login to continue.",
@@ -289,13 +273,10 @@ export async function register(
 
 export async function logout(): Promise<void> {
   try {
-    // Call backend API to revoke token
     await authService.logout()
   } catch (error) {
-    // Continue with logout even if API call fails
     console.error("Logout API call failed:", error)
   } finally {
-    // Clear local storage
     removeAuthToken()
     setAuthState({
       user: null,

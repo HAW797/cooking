@@ -1,11 +1,9 @@
 <?php
-// Database configuration using PDO (MySQL)
-// Update credentials if needed.
 
 const DB_HOST = '127.0.0.1';
 const DB_NAME = 'cooking_app';
 const DB_USER = 'root';
-const DB_PASS = '';  // XAMPP default: no password
+const DB_PASS = '';
 const DB_CHARSET = 'utf8mb4';
 
 function get_pdo(): PDO
@@ -24,7 +22,6 @@ function get_pdo(): PDO
     return $pdo;
 }
 
-// Simple helpers
 function is_post(): bool
 {
     return $_SERVER['REQUEST_METHOD'] === 'POST';
@@ -34,7 +31,6 @@ function e(string $s): string
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
-// Start session for auth
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }

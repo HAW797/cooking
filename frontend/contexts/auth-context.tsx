@@ -21,31 +21,26 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Load auth state immediately (synchronous)
   const initialState = getAuthState()
   const [user, setUser] = useState<User | null>(initialState.user)
   const [isAuthenticated, setIsAuthenticated] = useState(initialState.isAuthenticated)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Revalidate auth state on mount (in case of stale data)
     const state = getAuthState()
     if (state.user !== user || state.isAuthenticated !== isAuthenticated) {
     setUser(state.user)
     setIsAuthenticated(state.isAuthenticated)
     }
 
-    // Track user activity for session management
     if (state.isAuthenticated) {
       const handleActivity = () => updateActivity()
       
-      // Listen to user activity events
       window.addEventListener('mousemove', handleActivity)
       window.addEventListener('keydown', handleActivity)
       window.addEventListener('click', handleActivity)
       window.addEventListener('scroll', handleActivity)
 
-      // Cleanup event listeners
       return () => {
         window.removeEventListener('mousemove', handleActivity)
         window.removeEventListener('keydown', handleActivity)
