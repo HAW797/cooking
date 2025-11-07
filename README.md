@@ -23,6 +23,11 @@ Recipe sharing platform with community features.
 Open **Terminal** and run:
 
 ```bash
+
+cd /Applications/XAMPP/xamppfiles/cooking/backend
+/Applications/XAMPP/xamppfiles/bin/mysql -u root < db.sql
+
+
 cd /Applications/XAMPP/xamppfiles/cooking/backend/public
 /Applications/XAMPP/xamppfiles/bin/php -S localhost:8000
 ```

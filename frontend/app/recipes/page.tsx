@@ -200,9 +200,11 @@ export default function RecipesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Levels</SelectItem>
-                  <SelectItem value="Easy">Easy</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="Hard">Hard</SelectItem>
+                  {difficulties.map((difficulty) => (
+                    <SelectItem key={difficulty.difficulty_id} value={difficulty.difficulty_level}>
+                      {difficulty.difficulty_level}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

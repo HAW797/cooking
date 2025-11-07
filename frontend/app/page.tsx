@@ -19,6 +19,7 @@ export default function HomePage() {
   const { isAuthenticated } = useAuth()
   const router = useRouter()
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authModalMode, setAuthModalMode] = useState<"login" | "register">("register")
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -135,7 +136,12 @@ export default function HomePage() {
       <Footer />
       <CookieConsent />
       <JoinUsModal />
-      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} mode="register" />
+      <AuthModal 
+        open={authModalOpen} 
+        onOpenChange={setAuthModalOpen} 
+        mode={authModalMode} 
+        setMode={setAuthModalMode}
+      />
     </div>
   )
 }
