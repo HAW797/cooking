@@ -29,8 +29,25 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $errors[] = 'Valid email is required';
 }
 
-if (strlen($password) < 6) {
-    $errors[] = 'Password must be at least 6 characters';
+// Password validation - matching frontend rules
+if (strlen($password) < 8) {
+    $errors[] = 'Password must be at least 8 characters';
+}
+
+if (!preg_match('/[A-Z]/', $password)) {
+    $errors[] = 'Password must contain at least one uppercase letter';
+}
+
+if (!preg_match('/[a-z]/', $password)) {
+    $errors[] = 'Password must contain at least one lowercase letter';
+}
+
+if (!preg_match('/[0-9]/', $password)) {
+    $errors[] = 'Password must contain at least one number';
+}
+
+if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+    $errors[] = 'Password must contain at least one special character';
 }
 
 if (!empty($errors)) {

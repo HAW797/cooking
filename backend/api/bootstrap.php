@@ -105,3 +105,63 @@ function require_auth(): array
     }
     return $user;
 }
+
+function check_login_lockout(string $email): void
+{
+    $pdo = get_pdo();
+    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM login_attempts WHERE email = ?');
+    $stmt->execute([$email]);
+    $attempt = $stmt->fetch();
+
+    if ($attempt && $attempt['locked_until']) {
+        $lockedUntil = new DateTime($attempt['locked_until']);
+        $now = new DateTime();
+
+        if ($lockedUntil > $now) {
+            $minutesRemaining = ceil(($lockedUntil->getTimestamp() - $now->getTimestamp()) / 60);
+            error_response("Account locked due to too many failed login attempts. Please try again in {$minutesRemaining} minute(s).", 423);
+        } else {
+            // Lockout expired, clear it
+            clear_login_attempts($email);
+        }
+    }
+}
+
+function record_failed_login(string $email): void
+{
+    $pdo = get_pdo();
+    $maxAttempts = 3;
+    $lockoutMinutes = 3;
+
+    // Get current attempts
+    $stmt = $pdo->prepare('SELECT attempts FROM login_attempts WHERE email = ?');
+    $stmt->execute([$email]);
+    $attempt = $stmt->fetch();
+
+    if ($attempt) {
+        $newAttempts = (int)$attempt['attempts'] + 1;
+
+        if ($newAttempts >= $maxAttempts) {
+            // Lock the account for 3 minutes
+            $lockedUntil = date('Y-m-d H:i:s', strtotime("+{$lockoutMinutes} minutes"));
+            $stmt = $pdo->prepare('UPDATE login_attempts SET attempts = ?, locked_until = ?, last_attempt_at = NOW() WHERE email = ?');
+            $stmt->execute([$newAttempts, $lockedUntil, $email]);
+            error_response("Too many failed login attempts. Your account has been locked for {$lockoutMinutes} minutes.", 423);
+        } else {
+            // Increment attempts
+            $stmt = $pdo->prepare('UPDATE login_attempts SET attempts = ?, last_attempt_at = NOW() WHERE email = ?');
+            $stmt->execute([$newAttempts, $email]);
+        }
+    } else {
+        // First failed attempt
+        $stmt = $pdo->prepare('INSERT INTO login_attempts (email, attempts, last_attempt_at) VALUES (?, 1, NOW())');
+        $stmt->execute([$email]);
+    }
+}
+
+function clear_login_attempts(string $email): void
+{
+    $pdo = get_pdo();
+    $stmt = $pdo->prepare('DELETE FROM login_attempts WHERE email = ?');
+    $stmt->execute([$email]);
+}

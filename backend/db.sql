@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS resource (
     resource_id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(150) NOT NULL,
     description TEXT,
+    topic VARCHAR(150) NULL,
     resource_type ENUM('Culinary', 'Educational') NOT NULL,
     file_url VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -115,6 +116,17 @@ CREATE TABLE IF NOT EXISTS user_session (
     CONSTRAINT fk_session_user FOREIGN KEY (user_id) REFERENCES user (user_id) ON DELETE CASCADE
 );
 
+-- Login attempts tracking (for brute force protection)
+CREATE TABLE IF NOT EXISTS login_attempts (
+    attempt_id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(190) NOT NULL,
+    attempts INT DEFAULT 1,
+    locked_until DATETIME NULL,
+    last_attempt_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_locked_until (locked_until)
+);
+
 -- Cookbook likes (love/react function)
 CREATE TABLE IF NOT EXISTS cookbook_likes (
     like_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -136,6 +148,17 @@ CREATE TABLE IF NOT EXISTS recipe_ratings (
     ),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_rating_recipe FOREIGN KEY (recipe_id) REFERENCES recipe (recipe_id) ON DELETE CASCADE
+);
+
+-- Events
+CREATE TABLE IF NOT EXISTS event (
+    event_id INT AUTO_INCREMENT PRIMARY KEY,
+    event_title VARCHAR(150) NOT NULL,
+    event_date DATETIME NOT NULL,
+    location VARCHAR(255),
+    description TEXT,
+    image_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Seed data

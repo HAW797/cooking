@@ -14,7 +14,7 @@ if (in_array($resourceType, ['Culinary', 'Educational'], true)) {
     $params[] = $resourceType;
 }
 
-$sql = 'SELECT resource_id, title, description, resource_type, file_url, created_at 
+$sql = 'SELECT resource_id, title, description, topic, resource_type, file_url, created_at 
         FROM resource ' . $whereClause . ' 
         ORDER BY created_at DESC';
 
