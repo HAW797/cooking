@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Clock, Users, ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -11,11 +11,8 @@ type Recipe = {
   title: string
   description: string
   image: string
-  cookTime: string
-  servings: number
   author: string
   likes: number
-  instructions: string[]
 }
 
 export function CommunityRecipeDetail({ recipe }: { recipe: Recipe | undefined }) {
@@ -59,48 +56,6 @@ export function CommunityRecipeDetail({ recipe }: { recipe: Recipe | undefined }
         <div className="relative h-96 w-full rounded-lg overflow-hidden mb-8">
           <Image src={recipe.image || "/placeholder.svg"} alt={recipe.title} fill className="object-cover" />
         </div>
-
-        {/* Recipe Meta - Removed difficulty and cuisine cards */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Clock className="h-4 w-4" />
-                <span className="text-sm">Cook Time</span>
-              </div>
-              <p className="text-lg font-semibold">{recipe.cookTime}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Users className="h-4 w-4" />
-                <span className="text-sm">Servings</span>
-              </div>
-              <p className="text-lg font-semibold">{recipe.servings}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Instructions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Instructions</CardTitle>
-            <CardDescription>Step-by-step guide to prepare this dish</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-4">
-              {recipe.instructions.map((instruction, index) => (
-                <li key={index} className="flex gap-4">
-                  <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold text-sm">
-                    {index + 1}
-                  </span>
-                  <p className="leading-relaxed pt-1">{instruction}</p>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
       </div>
     </main>
   )

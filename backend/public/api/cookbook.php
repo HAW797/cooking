@@ -3,11 +3,14 @@
 require_once __DIR__ . '/../../api/bootstrap.php';
 
 $pdo = get_pdo();
-
-$user = require_auth();
-$userId = (int)$user['user_id'];
-
 $method = $_SERVER['REQUEST_METHOD'];
+
+// For GET requests (viewing all posts), allow without auth
+// For POST/PUT/DELETE, require auth
+if ($method !== 'GET') {
+    $user = require_auth();
+    $userId = (int)$user['user_id'];
+}
 
 function formatRecipeWithRelatedData($recipe, $pdo = null, $currentUserId = null)
 {
@@ -16,40 +19,8 @@ function formatRecipeWithRelatedData($recipe, $pdo = null, $currentUserId = null
         'recipe_title' => $recipe['recipe_title'],
         'description' => $recipe['description'],
         'image_url' => $recipe['image_url'],
-        'prep_time' => (int)$recipe['prep_time'],
-        'cook_time' => (int)$recipe['cook_time'],
-        'servings' => (int)$recipe['servings'],
-        'instructions' => $recipe['instructions'],
         'created_at' => $recipe['created_at'],
-        'updated_at' => $recipe['updated_at'],
     ];
-    
-    if ($recipe['cuisine_type_id']) {
-        $formatted['cuisine'] = [
-            'cuisine_type_id' => (int)$recipe['cuisine_type_id'],
-            'cuisine_name' => $recipe['cuisine_name']
-        ];
-    } else {
-        $formatted['cuisine'] = null;
-    }
-    
-    if ($recipe['dietary_id']) {
-        $formatted['dietary'] = [
-            'dietary_id' => (int)$recipe['dietary_id'],
-            'dietary_name' => $recipe['dietary_name']
-        ];
-    } else {
-        $formatted['dietary'] = null;
-    }
-    
-    if ($recipe['difficulty_id']) {
-        $formatted['difficulty'] = [
-            'difficulty_id' => (int)$recipe['difficulty_id'],
-            'difficulty_level' => $recipe['difficulty_level']
-        ];
-    } else {
-        $formatted['difficulty'] = null;
-    }
     
     if ($pdo && $currentUserId) {
         $postId = (int)$recipe['post_id'];
@@ -68,198 +39,223 @@ function formatRecipeWithRelatedData($recipe, $pdo = null, $currentUserId = null
 }
 
 if ($method === 'GET') {
-    $stmt = $pdo->prepare('SELECT c.post_id, 
-                                  c.recipe_title, 
-                                  c.description, 
-                                  c.image_url, 
-                                  c.cuisine_type_id,
-                                  ct.cuisine_name,
-                                  c.dietary_id,
-                                  d.dietary_name,
-                                  c.difficulty_id,
-                                  df.difficulty_level,
-                                  c.prep_time, 
-                                  c.cook_time, 
-                                  c.servings, 
-                                  c.instructions, 
-                                  c.created_at, 
-                                  c.updated_at 
-                           FROM community_cookbook c
-                           LEFT JOIN cuisine_type ct ON c.cuisine_type_id = ct.cuisine_type_id
-                           LEFT JOIN dietary d ON c.dietary_id = d.dietary_id
-                           LEFT JOIN difficulty df ON c.difficulty_id = df.difficulty_id
-                           WHERE c.user_id = ? 
-                           ORDER BY c.created_at DESC');
-    $stmt->execute([$userId]);
-    $recipesRaw = $stmt->fetchAll();
+    // Get optional user_id from auth if logged in (for like status)
+    $currentUserId = null;
+    try {
+        $user = get_authenticated_user();
+        $currentUserId = $user ? (int)$user['user_id'] : null;
+    } catch (Exception $e) {
+        // Not logged in - that's okay for viewing posts
+    }
     
-    $recipes = [];
-    foreach ($recipesRaw as $recipe) {
-        $recipes[] = formatRecipeWithRelatedData($recipe, $pdo, $userId);
+    // Fetch all community cookbook posts with user information
+    $stmt = $pdo->prepare('
+        SELECT 
+            c.post_id, 
+            c.recipe_title, 
+            c.description, 
+            c.image_url, 
+            c.created_at,
+            u.user_id,
+            CONCAT(u.first_name, " ", u.last_name) as author_name
+        FROM community_cookbook c
+        INNER JOIN user u ON c.user_id = u.user_id
+        ORDER BY c.created_at DESC
+    ');
+    
+    $stmt->execute();
+    $postsRaw = $stmt->fetchAll();
+    
+    $posts = [];
+    foreach ($postsRaw as $post) {
+        $postId = (int)$post['post_id'];
+        
+        // Get like count
+        $likeCountStmt = $pdo->prepare('SELECT COUNT(*) as like_count FROM cookbook_likes WHERE post_id = ?');
+        $likeCountStmt->execute([$postId]);
+        $likeCount = $likeCountStmt->fetch();
+        
+        // Check if current user liked this post (if logged in)
+        $userLiked = false;
+        if ($currentUserId) {
+            $userLikedStmt = $pdo->prepare('SELECT like_id FROM cookbook_likes WHERE post_id = ? AND user_id = ?');
+            $userLikedStmt->execute([$postId, $currentUserId]);
+            $userLiked = (bool)$userLikedStmt->fetch();
+        }
+        
+        $posts[] = [
+            'id' => (string)$postId,
+            'post_id' => $postId,
+            'title' => $post['recipe_title'],
+            'recipe_title' => $post['recipe_title'],
+            'description' => $post['description'],
+            'image' => $post['image_url'],
+            'image_url' => $post['image_url'],
+            'author' => $post['author_name'],
+            'authorId' => (string)$post['user_id'],
+            'likes' => (int)$likeCount['like_count'],
+            'like_count' => (int)$likeCount['like_count'],
+            'createdAt' => $post['created_at'],
+            'created_at' => $post['created_at'],
+            'reactions' => [
+                'heart' => (int)$likeCount['like_count']
+            ],
+            'userLiked' => $userLiked,
+            'user_liked' => $userLiked
+        ];
     }
 
-    success_response('Recipes retrieved successfully', [
-        'items' => $recipes,
-        'count' => count($recipes)
+    success_response('Posts retrieved successfully', [
+        'items' => $posts,
+        'count' => count($posts)
     ]);
 }
 
 if ($method === 'POST') {
+    // Auth is required for POST
+    if (!isset($userId)) {
+        error_response('Authentication required', 401);
+    }
+    
     $body = read_json_body();
-    $recipeTitle = trim($body['recipe_title'] ?? '');
+    $title = trim($body['title'] ?? $body['recipe_title'] ?? '');
+    $description = trim($body['description'] ?? '');
+    $imageUrl = $body['image_url'] ?? $body['image'] ?? null;
 
-    if ($recipeTitle === '') {
-        error_response('Recipe title is required', 422);
+    if ($title === '') {
+        error_response('Title is required', 422);
+    }
+    
+    if ($description === '') {
+        error_response('Description is required', 422);
     }
 
-    $stmt = $pdo->prepare('INSERT INTO community_cookbook 
-                          (user_id, recipe_title, description, image_url, 
-                           cuisine_type_id, dietary_id, difficulty_id, 
-                           prep_time, cook_time, servings, instructions) 
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    
-    $stmt->execute([
-        $userId,
-        $recipeTitle,
-        $body['description'] ?? null,
-        $body['image_url'] ?? null,
-        $body['cuisine_type_id'] ?? null,
-        $body['dietary_id'] ?? null,
-        $body['difficulty_id'] ?? null,
-        (int)($body['prep_time'] ?? 0),
-        (int)($body['cook_time'] ?? 0),
-        (int)($body['servings'] ?? 0),
-        $body['instructions'] ?? null,
-    ]);
+    try {
+        $stmt = $pdo->prepare('INSERT INTO community_cookbook 
+                              (user_id, recipe_title, description, image_url) 
+                              VALUES (?, ?, ?, ?)');
+        
+        $stmt->execute([
+            $userId,
+            $title,
+            $description,
+            $imageUrl,
+        ]);
+    } catch (PDOException $e) {
+        if ($e->getCode() == '22001') {
+            error_response('Image is too large. Please use a smaller image or URL.', 413);
+        }
+        throw $e;
+    }
 
     $postId = (int)$pdo->lastInsertId();
     
-    $fetchStmt = $pdo->prepare('SELECT c.post_id, 
-                                       c.recipe_title, 
-                                       c.description, 
-                                       c.image_url, 
-                                       c.cuisine_type_id,
-                                       ct.cuisine_name,
-                                       c.dietary_id,
-                                       d.dietary_name,
-                                       c.difficulty_id,
-                                       df.difficulty_level,
-                                       c.prep_time, 
-                                       c.cook_time, 
-                                       c.servings, 
-                                       c.instructions, 
-                                       c.created_at, 
-                                       c.updated_at 
-                                FROM community_cookbook c
-                                LEFT JOIN cuisine_type ct ON c.cuisine_type_id = ct.cuisine_type_id
-                                LEFT JOIN dietary d ON c.dietary_id = d.dietary_id
-                                LEFT JOIN difficulty df ON c.difficulty_id = df.difficulty_id
-                                WHERE c.post_id = ? AND c.user_id = ?');
-    $fetchStmt->execute([$postId, $userId]);
-    $createdRecipe = $fetchStmt->fetch();
+    // Fetch the created post with user info
+    $fetchStmt = $pdo->prepare('
+        SELECT 
+            c.post_id, 
+            c.recipe_title, 
+            c.description, 
+            c.image_url, 
+            c.created_at,
+            u.user_id,
+            CONCAT(u.first_name, " ", u.last_name) as author_name
+        FROM community_cookbook c
+        INNER JOIN user u ON c.user_id = u.user_id
+        WHERE c.post_id = ?
+    ');
+    $fetchStmt->execute([$postId]);
+    $createdPost = $fetchStmt->fetch();
     
-    if ($createdRecipe) {
-        $formattedRecipe = formatRecipeWithRelatedData($createdRecipe, $pdo, $userId);
-        success_response('Recipe created successfully', [
+    if ($createdPost) {
+        $post = [
+            'id' => (string)$postId,
             'post_id' => $postId,
-            'recipe' => $formattedRecipe
+            'title' => $createdPost['recipe_title'],
+            'recipe_title' => $createdPost['recipe_title'],
+            'description' => $createdPost['description'],
+            'image' => $createdPost['image_url'],
+            'image_url' => $createdPost['image_url'],
+            'author' => $createdPost['author_name'],
+            'authorId' => (string)$createdPost['user_id'],
+            'likes' => 0,
+            'like_count' => 0,
+            'createdAt' => $createdPost['created_at'],
+            'created_at' => $createdPost['created_at'],
+            'reactions' => [
+                'heart' => 0
+            ],
+            'userLiked' => false,
+            'user_liked' => false
+        ];
+        
+        success_response('Post created successfully', [
+            'post_id' => $postId,
+            'post' => $post
         ], 201);
     } else {
-        success_response('Recipe created successfully', [
+        success_response('Post created successfully', [
             'post_id' => $postId
         ], 201);
     }
 }
 
-$postId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+// For PUT and DELETE, need post ID and auth
+if ($method === 'PUT' || $method === 'DELETE') {
+    if (!isset($userId)) {
+        error_response('Authentication required', 401);
+    }
+    
+    $postId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-if (!$postId) {
-    error_response('Post ID is required', 400);
-}
+    if (!$postId) {
+        error_response('Post ID is required', 400);
+    }
 
-$ownershipStmt = $pdo->prepare('SELECT post_id FROM community_cookbook WHERE post_id = ? AND user_id = ?');
-$ownershipStmt->execute([$postId, $userId]);
+    $ownershipStmt = $pdo->prepare('SELECT post_id FROM community_cookbook WHERE post_id = ? AND user_id = ?');
+    $ownershipStmt->execute([$postId, $userId]);
 
-if (!$ownershipStmt->fetch()) {
-    error_response('Recipe not found or access denied', 404);
+    if (!$ownershipStmt->fetch()) {
+        error_response('Post not found or access denied', 404);
+    }
 }
 
 if ($method === 'PUT') {
     $body = read_json_body();
-    $recipeTitle = trim($body['recipe_title'] ?? '');
+    $title = trim($body['title'] ?? $body['recipe_title'] ?? '');
+    $description = trim($body['description'] ?? '');
+    $imageUrl = $body['image_url'] ?? $body['image'] ?? null;
 
-    if ($recipeTitle === '') {
-        error_response('Recipe title is required', 422);
+    if ($title === '') {
+        error_response('Title is required', 422);
     }
 
     $stmt = $pdo->prepare('UPDATE community_cookbook 
                           SET recipe_title = ?, 
                               description = ?, 
-                              image_url = ?, 
-                              cuisine_type_id = ?, 
-                              dietary_id = ?, 
-                              difficulty_id = ?, 
-                              prep_time = ?, 
-                              cook_time = ?, 
-                              servings = ?, 
-                              instructions = ?, 
-                              updated_at = NOW() 
+                              image_url = ? 
                           WHERE post_id = ? AND user_id = ?');
     
     $stmt->execute([
-        $recipeTitle,
-        $body['description'] ?? null,
-        $body['image_url'] ?? null,
-        $body['cuisine_type_id'] ?? null,
-        $body['dietary_id'] ?? null,
-        $body['difficulty_id'] ?? null,
-        (int)($body['prep_time'] ?? 0),
-        (int)($body['cook_time'] ?? 0),
-        (int)($body['servings'] ?? 0),
-        $body['instructions'] ?? null,
+        $title,
+        $description,
+        $imageUrl,
         $postId,
         $userId
     ]);
     
-    $fetchStmt = $pdo->prepare('SELECT c.post_id, 
-                                       c.recipe_title, 
-                                       c.description, 
-                                       c.image_url, 
-                                       c.cuisine_type_id,
-                                       ct.cuisine_name,
-                                       c.dietary_id,
-                                       d.dietary_name,
-                                       c.difficulty_id,
-                                       df.difficulty_level,
-                                       c.prep_time, 
-                                       c.cook_time, 
-                                       c.servings, 
-                                       c.instructions, 
-                                       c.created_at, 
-                                       c.updated_at 
-                                FROM community_cookbook c
-                                LEFT JOIN cuisine_type ct ON c.cuisine_type_id = ct.cuisine_type_id
-                                LEFT JOIN dietary d ON c.dietary_id = d.dietary_id
-                                LEFT JOIN difficulty df ON c.difficulty_id = df.difficulty_id
-                                WHERE c.post_id = ? AND c.user_id = ?');
-    $fetchStmt->execute([$postId, $userId]);
-    $updatedRecipe = $fetchStmt->fetch();
-    
-    if ($updatedRecipe) {
-        $formattedRecipe = formatRecipeWithRelatedData($updatedRecipe, $pdo, $userId);
-        success_response('Recipe updated successfully', [
-            'recipe' => $formattedRecipe
-        ]);
-    } else {
-        success_response('Recipe updated successfully');
-    }
+    success_response('Post updated successfully', [
+        'post_id' => $postId
+    ]);
 }
 
 if ($method === 'DELETE') {
     $deleteStmt = $pdo->prepare('DELETE FROM community_cookbook WHERE post_id = ? AND user_id = ?');
     $deleteStmt->execute([$postId, $userId]);
 
-    success_response('Recipe deleted successfully');
+    success_response('Post deleted successfully', [
+        'post_id' => $postId
+    ]);
 }
 
 error_response('Method not allowed', 405);

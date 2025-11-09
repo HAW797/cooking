@@ -86,12 +86,12 @@ function revoke_session_token(string $token): void
     $stmt->execute([$token]);
 }
 
-function require_auth(): array
+function get_authenticated_user(): ?array
 {
     $pdo = get_pdo();
     $token = bearer_token();
     if (!$token) {
-        error_response('Authentication token required', 401);
+        return null;
     }
     $stmt = $pdo->prepare('SELECT u.user_id, u.first_name, u.last_name, u.email 
                            FROM user_session s 
@@ -100,8 +100,14 @@ function require_auth(): array
                            AND (s.expires_at IS NULL OR s.expires_at > NOW())');
     $stmt->execute([$token]);
     $user = $stmt->fetch();
+    return $user ?: null;
+}
+
+function require_auth(): array
+{
+    $user = get_authenticated_user();
     if (!$user) {
-        error_response('Invalid or expired token', 401);
+        error_response('Authentication required', 401);
     }
     return $user;
 }

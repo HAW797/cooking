@@ -25,7 +25,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $errors[] = 'Valid email is required';
 }
 
-if ($subject === '') {
+if (!$subjectId) {
     $errors[] = 'Subject is required';
 }
 
@@ -34,26 +34,30 @@ if ($message === '') {
 }
 
 if (!empty($errors)) {
-    json_response([
-        'message' => 'Validation failed',
-        'errors' => $errors
-    ], 422);
+    error_response('Validation failed: ' . implode(', ', $errors), 422);
 }
 
+// Get subject name from database
 if ($subjectId) {
     $subjectStmt = $pdo->prepare('SELECT subject_name FROM contact_subject WHERE subject_id = ?');
     $subjectStmt->execute([$subjectId]);
     $subjectData = $subjectStmt->fetch();
     if ($subjectData) {
         $subject = $subjectData['subject_name'];
+    } else {
+        error_response('Invalid subject selected', 422);
     }
 }
 
-$stmt = $pdo->prepare('INSERT INTO contact_message (name, email, subject, subject_id, message) VALUES (?, ?, ?, ?, ?)');
-$stmt->execute([$name, $email, $subject, $subjectId, $message]);
+try {
+    $stmt = $pdo->prepare('INSERT INTO contact_message (name, email, subject_id, subject, message) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$name, $email, $subjectId, $subject, $message]);
 
-$messageId = (int)$pdo->lastInsertId();
+    $messageId = (int)$pdo->lastInsertId();
 
-success_response('Message sent successfully', [
-    'message_id' => $messageId
-], 201);
+    success_response('Message sent successfully', [
+        'message_id' => $messageId
+    ], 201);
+} catch (PDOException $e) {
+    error_response('Failed to save message: ' . $e->getMessage(), 500);
+}

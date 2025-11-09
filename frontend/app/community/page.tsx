@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { AuthGuard } from "@/components/auth-guard"
@@ -14,23 +14,20 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { Clock, Users, Plus, X, Pencil, Trash2, Share2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Share2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { apiClient } from "@/lib/api-client"
 
 interface CommunityRecipe {
   id: string
   title: string
   description: string
   image: string
-  prepTime?: string
-  cookTime: string
-  servings: number
   author: string
   authorId: string
   likes: number
   createdAt: string
-  instructions?: string[]
   reactions: {
     heart: number
   }
@@ -42,18 +39,10 @@ const initialRecipes: CommunityRecipe[] = [
     title: "Grandma's Apple Pie",
     description: "A family recipe passed down through generations with a flaky crust and cinnamon-spiced apples",
     image: "/apple-pie-homemade.jpg",
-    cookTime: "60 mins",
-    servings: 8,
     author: "Sarah Johnson",
-    authorId: "user1",
+    authorId: "1",
     likes: 156,
     createdAt: "2024-06-10",
-    instructions: [
-      "Preheat oven to 375°F",
-      "Mix apples with sugar, flour, and cinnamon",
-      "Place in pie crust",
-      "Bake for 50-60 minutes",
-    ],
     reactions: { heart: 156 },
   },
   {
@@ -61,18 +50,10 @@ const initialRecipes: CommunityRecipe[] = [
     title: "Spicy Korean Fried Chicken",
     description: "Crispy double-fried chicken coated in a sweet and spicy gochujang glaze",
     image: "/korean-fried-chicken.jpg",
-    cookTime: "45 mins",
-    servings: 4,
     author: "David Kim",
-    authorId: "user2",
+    authorId: "2",
     likes: 203,
     createdAt: "2024-06-12",
-    instructions: [
-      "Coat chicken in flour mixture",
-      "Fry at 350°F for 10 minutes",
-      "Rest, then fry again at 375°F",
-      "Toss in gochujang glaze",
-    ],
     reactions: { heart: 203 },
   },
   {
@@ -80,18 +61,10 @@ const initialRecipes: CommunityRecipe[] = [
     title: "Mediterranean Quinoa Salad",
     description: "Fresh and healthy salad with quinoa, cucumbers, tomatoes, feta, and lemon dressing",
     image: "/quinoa-salad-mediterranean.jpg",
-    cookTime: "20 mins",
-    servings: 6,
-    author: "Elena Martinez",
-    authorId: "user3",
+    author: "",
+    authorId: "3",
     likes: 128,
     createdAt: "2024-06-14",
-    instructions: [
-      "Cook quinoa according to package",
-      "Dice vegetables",
-      "Mix all ingredients",
-      "Dress with lemon juice and olive oil",
-    ],
     reactions: { heart: 128 },
   },
   {
@@ -99,18 +72,10 @@ const initialRecipes: CommunityRecipe[] = [
     title: "Homemade Ramen Bowl",
     description: "Rich pork broth with noodles, soft-boiled eggs, and traditional toppings",
     image: "/ramen-bowl-homemade.jpg",
-    cookTime: "120 mins",
-    servings: 4,
     author: "Chef Takeshi",
-    authorId: "user4",
+    authorId: "4",
     likes: 287,
     createdAt: "2024-06-08",
-    instructions: [
-      "Simmer pork bones for 8 hours",
-      "Cook noodles separately",
-      "Prepare toppings",
-      "Assemble bowl with broth and toppings",
-    ],
     reactions: { heart: 287 },
   },
   {
@@ -118,13 +83,10 @@ const initialRecipes: CommunityRecipe[] = [
     title: "Vegan Chocolate Brownies",
     description: "Fudgy and decadent brownies made without eggs or dairy",
     image: "/vegan-chocolate-brownies.jpg",
-    cookTime: "30 mins",
-    servings: 12,
     author: "Lisa Green",
-    authorId: "user5",
+    authorId: "5",
     likes: 94,
     createdAt: "2024-06-15",
-    instructions: ["Preheat oven to 350°F", "Mix dry ingredients", "Add wet ingredients", "Bake for 25-30 minutes"],
     reactions: { heart: 94 },
   },
   {
@@ -132,18 +94,10 @@ const initialRecipes: CommunityRecipe[] = [
     title: "Authentic Paella Valenciana",
     description: "Traditional Spanish rice dish with chicken, rabbit, and vegetables",
     image: "/paella-valenciana-spanish.jpg",
-    cookTime: "90 mins",
-    servings: 6,
     author: "Carlos Rodriguez",
-    authorId: "user6",
+    authorId: "5",
     likes: 176,
     createdAt: "2024-06-11",
-    instructions: [
-      "Brown meats in paella pan",
-      "Add vegetables and rice",
-      "Add broth with saffron",
-      "Cook until rice is tender",
-    ],
     reactions: { heart: 176 },
   },
 ]
@@ -151,51 +105,118 @@ const initialRecipes: CommunityRecipe[] = [
 export default function CommunityPage() {
   const { user } = useAuth()
   const { toast } = useToast()
-  const [recipes, setRecipes] = useState<CommunityRecipe[]>(initialRecipes)
+  const [recipes, setRecipes] = useState<CommunityRecipe[]>([])
+  const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingRecipe, setEditingRecipe] = useState<CommunityRecipe | null>(null)
   const [userReactions, setUserReactions] = useState<Record<string, boolean>>({})
-  const [instructions, setInstructions] = useState<string[]>([""])
   const [title, setTitle] = useState<string>("")
   const [description, setDescription] = useState<string>("")
-  const [prepTime, setPrepTime] = useState<string>("")
-  const [cookTime, setCookTime] = useState<string>("")
-  const [servings, setServings] = useState<string>("")
   const [imageUrl, setImageUrl] = useState<string>("")
+  const [imagePreview, setImagePreview] = useState<string>("")
 
-  const addInstruction = () => {
-    setInstructions([...instructions, ""])
-  }
+  // Fetch community posts from API
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        setLoading(true)
+        const response = await apiClient.get('/api/cookbook.php')
+        
+        console.log('API Response:', response)
+        
+        if (response.success && response.data?.items) {
+          setRecipes(response.data.items)
+          
+          // Set user reactions based on API data
+          const reactions: Record<string, boolean> = {}
+          response.data.items.forEach((item: any) => {
+            if (item.userLiked || item.user_liked) {
+              reactions[item.id] = true
+            }
+          })
+          setUserReactions(reactions)
+        }
+      } catch (error) {
+        console.error('Error fetching community posts:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load community posts",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const removeInstruction = (index: number) => {
-    setInstructions(instructions.filter((_, i) => i !== index))
-  }
+    fetchPosts()
+  }, [toast])
 
-  const updateInstruction = (index: number, value: string) => {
-    const newInstructions = [...instructions]
-    newInstructions[index] = value
-    setInstructions(newInstructions)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Check file size (max 500KB for base64)
+      if (file.size > 500 * 1024) {
+        toast({
+          title: "Error",
+          description: "Image size should be less than 500KB",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Check file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Error",
+          description: "Please upload an image file",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const result = reader.result as string
+        setImageUrl(result)
+        setImagePreview(result)
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleEdit = (recipe: CommunityRecipe) => {
     setEditingRecipe(recipe)
     setTitle(recipe.title)
     setDescription(recipe.description)
-    setPrepTime(recipe.prepTime || "")
-    setCookTime(recipe.cookTime)
-    setServings(recipe.servings.toString())
     setImageUrl(recipe.image)
-    setInstructions(recipe.instructions || [""])
     setModalOpen(true)
   }
 
-  const handleDelete = (recipeId: string) => {
-    if (confirm("Are you sure you want to delete this recipe?")) {
-      setRecipes(recipes.filter((r) => r.id !== recipeId))
-      toast({
-        title: "Success",
-        description: "Recipe deleted successfully",
-      })
+  const handleDelete = async (recipeId: string) => {
+    if (confirm("Are you sure you want to delete this post?")) {
+      try {
+        const response = await apiClient.delete(`/api/cookbook.php?id=${recipeId}`)
+        
+        if (response.success) {
+          toast({
+            title: "Success",
+            description: "Post deleted successfully",
+          })
+          
+          // Refresh the posts list
+          const refreshResponse = await apiClient.get('/api/cookbook.php')
+          if (refreshResponse.success && refreshResponse.data?.items) {
+            setRecipes(refreshResponse.data.items)
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting post:', error)
+        toast({
+          title: "Error",
+          description: "Failed to delete post",
+          variant: "destructive",
+        })
+      }
     }
   }
 
@@ -235,13 +256,13 @@ export default function CommunityPage() {
         await navigator.share(shareData)
         toast({
           title: "Success",
-          description: "Recipe shared successfully!",
+          description: "Post shared successfully!",
         })
       } else {
         await navigator.clipboard.writeText(shareUrl)
         toast({
           title: "Link Copied",
-          description: "Recipe link copied to clipboard!",
+          description: "Post link copied to clipboard!",
         })
       }
     } catch (error) {
@@ -249,10 +270,10 @@ export default function CommunityPage() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!title || !description || !cookTime || !servings) {
+    if (!title || !description) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -261,68 +282,61 @@ export default function CommunityPage() {
       return
     }
 
-    const filteredInstructions = instructions.filter((inst) => inst.trim() !== "")
+    try {
+      const postData = {
+        title,
+        description,
+        image_url: imageUrl || "/placeholder-recipe.jpg",
+      }
 
-    if (filteredInstructions.length === 0) {
+      if (editingRecipe) {
+        // Update existing post
+        const response = await apiClient.put(`/api/cookbook.php?id=${editingRecipe.id}`, postData)
+        
+        if (response.success) {
+          toast({
+            title: "Success",
+            description: "Your post has been updated!",
+          })
+          
+          // Refresh the posts list
+          const refreshResponse = await apiClient.get('/api/cookbook.php')
+          if (refreshResponse.success && refreshResponse.data?.items) {
+            setRecipes(refreshResponse.data.items)
+          }
+        }
+      } else {
+        // Create new post
+        const response = await apiClient.post('/api/cookbook.php', postData)
+        
+        if (response.success) {
+          toast({
+            title: "Success",
+            description: "Your post has been shared with the community!",
+          })
+          
+          // Refresh the posts list
+          const refreshResponse = await apiClient.get('/api/cookbook.php')
+          if (refreshResponse.success && refreshResponse.data?.items) {
+            setRecipes(refreshResponse.data.items)
+          }
+        }
+      }
+
+      setModalOpen(false)
+      setEditingRecipe(null)
+      setTitle("")
+      setDescription("")
+      setImageUrl("")
+      setImagePreview("")
+    } catch (error) {
+      console.error('Error saving post:', error)
       toast({
         title: "Error",
-        description: "Please add at least one instruction",
+        description: "Failed to save post. Please try again.",
         variant: "destructive",
       })
-      return
     }
-
-    if (editingRecipe) {
-      const updatedRecipe: CommunityRecipe = {
-        ...editingRecipe,
-        title,
-        description,
-        image: imageUrl || "/placeholder-recipe.jpg",
-        prepTime: prepTime || undefined,
-        cookTime,
-        servings: Number.parseInt(servings),
-        instructions: filteredInstructions,
-      }
-
-      setRecipes(recipes.map((r) => (r.id === editingRecipe.id ? updatedRecipe : r)))
-      toast({
-        title: "Success",
-        description: "Your recipe has been updated!",
-      })
-    } else {
-      const newRecipe: CommunityRecipe = {
-        id: `c${Date.now()}`,
-        title,
-        description,
-        image: imageUrl || "/placeholder-recipe.jpg",
-        prepTime: prepTime || undefined,
-        cookTime,
-        servings: Number.parseInt(servings),
-        author: user?.name || "Anonymous",
-        authorId: user?.id.toString() || "unknown",
-        likes: 0,
-        createdAt: new Date().toISOString().split("T")[0],
-        instructions: filteredInstructions,
-        reactions: { heart: 0 },
-      }
-
-      setRecipes([newRecipe, ...recipes])
-      toast({
-        title: "Success",
-        description: "Your recipe has been shared with the community!",
-      })
-    }
-
-    setModalOpen(false)
-    setEditingRecipe(null)
-
-    setTitle("")
-    setDescription("")
-    setPrepTime("")
-    setCookTime("")
-    setServings("")
-    setImageUrl("")
-    setInstructions([""])
   }
 
   const handleModalClose = (open: boolean) => {
@@ -331,11 +345,7 @@ export default function CommunityPage() {
       setEditingRecipe(null)
       setTitle("")
       setDescription("")
-      setPrepTime("")
-      setCookTime("")
-      setServings("")
       setImageUrl("")
-      setInstructions([""])
     }
   }
 
@@ -351,13 +361,13 @@ export default function CommunityPage() {
                 <div>
                   <h1 className="text-4xl font-bold text-foreground mb-4 text-balance">Community Cookbook</h1>
                   <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-                    Share your favorite recipes with fellow food enthusiasts and discover unique dishes from our
+                    Share your culinary experiences with fellow food enthusiasts and discover amazing content from our
                     community members.
                   </p>
                 </div>
                 <Button onClick={() => setModalOpen(true)} size="lg" className="shrink-0">
                   <Plus className="mr-2 h-5 w-5" />
-                  Share Recipe
+                  Create Post
                 </Button>
               </div>
             </div>
@@ -366,10 +376,22 @@ export default function CommunityPage() {
           <section className="py-12">
             <div className="container mx-auto px-4">
               <div className="mb-6">
-                <p className="text-muted-foreground">{recipes.length} community recipes</p>
+                <p className="text-muted-foreground">{recipes.length} community posts</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+                    <p className="mt-4 text-muted-foreground">Loading posts...</p>
+                  </div>
+                </div>
+              ) : recipes.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No posts yet. Be the first to share!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {recipes.map((recipe) => (
                   <Card key={recipe.id} className="overflow-hidden hover:shadow-lg transition-shadow relative">
                     {user?.id.toString() === recipe.authorId && (
@@ -414,17 +436,6 @@ export default function CommunityPage() {
                     </CardHeader>
 
                     <CardContent className="space-y-4">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          <span>{recipe.cookTime}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          <span>{recipe.servings} servings</span>
-                        </div>
-                      </div>
-
                       <div className="text-sm text-muted-foreground">
                         by <span className="font-medium text-foreground">{recipe.author}</span>
                       </div>
@@ -447,7 +458,8 @@ export default function CommunityPage() {
                     </CardContent>
                   </Card>
                 ))}
-              </div>
+                </div>
+              )}
             </div>
           </section>
         </main>
@@ -457,24 +469,24 @@ export default function CommunityPage() {
         <Dialog open={modalOpen} onOpenChange={handleModalClose}>
           <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingRecipe ? "Edit Recipe" : "Share Your Recipe"}</DialogTitle>
+              <DialogTitle>{editingRecipe ? "Edit Post" : "Create Post"}</DialogTitle>
               <DialogDescription>
                 {editingRecipe
-                  ? "Update your recipe details below."
-                  : "Share your favorite recipe with the FoodFusion community. Fill in the details below."}
+                  ? "Update your post details below."
+                  : "Share your culinary experience with the FoodFusion community. Fill in the details below."}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Basic Information</h3>
+                <h3 className="font-semibold text-lg">Post Details</h3>
 
                 <div className="space-y-2">
                   <Label htmlFor="title">
-                    Recipe Title <span className="text-destructive">*</span>
+                    Title <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="title"
-                    placeholder="e.g., Grandma's Chocolate Chip Cookies"
+                    placeholder="e.g., My Cooking Adventure"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     required
@@ -487,7 +499,7 @@ export default function CommunityPage() {
                   </Label>
                   <Textarea
                     id="description"
-                    placeholder="Describe your recipe..."
+                    placeholder="Share your thoughts, experiences, or story..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={3}
@@ -496,98 +508,25 @@ export default function CommunityPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="imageUrl">Image URL (optional)</Label>
+                  <Label htmlFor="imageUpload">Image (optional)</Label>
                   <Input
-                    id="imageUrl"
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
+                    id="imageUpload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="cursor-pointer"
                   />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Cooking Details</h3>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="prepTime">Prep Time (optional)</Label>
-                    <Input
-                      id="prepTime"
-                      placeholder="e.g., 15 mins"
-                      value={prepTime}
-                      onChange={(e) => setPrepTime(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cookTime">
-                      Cook Time <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="cookTime"
-                      placeholder="e.g., 30 mins"
-                      value={cookTime}
-                      onChange={(e) => setCookTime(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="servings">
-                    Servings <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="servings"
-                    type="number"
-                    min="1"
-                    placeholder="e.g., 4"
-                    value={servings}
-                    onChange={(e) => setServings(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-lg">
-                    Instructions <span className="text-destructive">*</span>
-                  </h3>
-                  <Button type="button" variant="outline" size="sm" onClick={addInstruction}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
-                  {instructions.map((instruction, index) => (
-                    <div key={index} className="flex gap-2">
-                      <div className="shrink-0 w-8 h-10 flex items-center justify-center bg-muted rounded text-sm font-medium">
-                        {index + 1}
-                      </div>
-                      <Textarea
-                        placeholder={`Step ${index + 1}`}
-                        value={instruction}
-                        onChange={(e) => updateInstruction(index, e.target.value)}
-                        rows={2}
-                        className="flex-1"
+                  <p className="text-xs text-muted-foreground">Maximum file size: 500KB. Use compressed images for best results.</p>
+                  {imagePreview && (
+                    <div className="mt-4 relative w-full h-48 rounded-lg overflow-hidden border border-border">
+                      <Image
+                        src={imagePreview}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
                       />
-                      {instructions.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeInstruction(index)}
-                          className="shrink-0"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -596,7 +535,7 @@ export default function CommunityPage() {
                   Cancel
                 </Button>
                 <Button type="submit" className="flex-1">
-                  {editingRecipe ? "Update Recipe" : "Share Recipe"}
+                  {editingRecipe ? "Update Post" : "Create Post"}
                 </Button>
               </div>
             </form>
