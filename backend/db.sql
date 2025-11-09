@@ -368,6 +368,15 @@ INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity) VALUES
 INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity) VALUES
     (12, 61, '4 cups'), (12, 62, '1 lb'), (12, 63, '2 cups'), (12, 64, '2 medium'), (12, 44, '1 cup'), (12, 65, '2 tbsp'), (12, 66, '4 large');
 
+-- Insert sample users for community cookbook
+INSERT INTO user (first_name, last_name, email, password_hash) VALUES
+    ('Jane', 'Smith', 'jane.smith@example.com', '$2y$10$abcdefghijklmnopqrstuv'),
+    ('Michael', 'Park', 'michael.park@example.com', '$2y$10$abcdefghijklmnopqrstuv'),
+    ('Sarah', 'Chen', 'sarah.chen@example.com', '$2y$10$abcdefghijklmnopqrstuv'),
+    ('David', 'Martinez', 'david.martinez@example.com', '$2y$10$abcdefghijklmnopqrstuv'),
+    ('Emma', 'Johnson', 'emma.johnson@example.com', '$2y$10$abcdefghijklmnopqrstuv')
+ON DUPLICATE KEY UPDATE first_name = VALUES(first_name);
+
 -- Insert sample community cookbook posts
 INSERT INTO community_cookbook (user_id, recipe_title, description, image_url, created_at) VALUES
     (1, 'Grandma''s Apple Pie', 'A family recipe passed down through generations with a flaky crust and cinnamon-spiced apples', '/chocolate-lava-cake-molten-center.jpg', '2024-06-10'),
