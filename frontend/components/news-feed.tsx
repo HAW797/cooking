@@ -1,50 +1,55 @@
-"use client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Calendar } from "lucide-react"
+import Image from "next/image"
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Calendar } from "lucide-react";
-import Image from "next/image";
-import { eventsService, type Event } from "@/lib/api/events.service";
+interface NewsItem {
+  id: string
+  title: string
+  excerpt: string
+  date: string
+  category: string
+  image: string
+}
+
+const newsItems: NewsItem[] = [
+  {
+    id: "1",
+    title: "Summer Grilling Masterclass Coming Soon",
+    excerpt:
+      "Join our expert chefs for an exclusive outdoor cooking workshop featuring BBQ techniques and seasonal recipes.",
+    date: "2024-06-15",
+    category: "Events",
+    image: "/outdoor-grilling-bbq.jpg",
+  },
+  {
+    id: "2",
+    title: "New Mediterranean Recipe Collection",
+    excerpt: "Explore our latest collection of authentic Mediterranean dishes, from Greek salads to Italian pasta.",
+    date: "2024-06-12",
+    category: "Recipes",
+    image: "/mediterranean-platter.png",
+  },
+  {
+    id: "3",
+    title: "Community Cookbook Reaches 1000 Recipes",
+    excerpt: "Our amazing community has contributed over 1000 unique recipes. Thank you for making FoodFusion special!",
+    date: "2024-06-10",
+    category: "Community",
+    image: "/cookbook-recipes-collection.jpg",
+  },
+  {
+    id: "4",
+    title: "Healthy Meal Prep Tips for Busy Weeks",
+    excerpt:
+      "Learn how to prepare nutritious meals in advance with our comprehensive meal prep guide and time-saving strategies.",
+    date: "2024-06-08",
+    category: "Tips",
+    image: "/meal-prep-guide.jpg",
+  },
+]
 
 export function NewsFeed() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setLoading(true);
-        const response = await eventsService.getEvents(true, 4);
-        
-        if (response.success && response.data?.items) {
-          setEvents(response.data.items);
-        }
-      } catch (error) {
-        console.error("Error fetching events:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEvents();
-  }, []);
-
-  if (loading) {
-    return (
-      <section className="py-16 bg-muted/30">
-        <div className="container mx-auto px-4 text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent" />
-          <p className="mt-4 text-muted-foreground">Loading events...</p>
-        </div>
-      </section>
-    );
-  }
-
-  if (events.length === 0) {
-    return null;
-  }
-
   return (
     <section className="py-16 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -56,8 +61,8 @@ export function NewsFeed() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {events.map((item) => (
-            <Card key={item.event_id} className="overflow-hidden hover:shadow-lg transition-shadow pt-0">
+          {newsItems.map((item) => (
+            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow pt-0">
               <div className="relative h-48 w-full">
                 <Image 
                   src={item.image || "/placeholder.svg"} 
@@ -68,7 +73,7 @@ export function NewsFeed() {
               </div>
               <CardHeader>
                 <div className="flex items-center justify-between mb-2">
-                  <Badge variant="secondary">{item.location || "Event"}</Badge>
+                  <Badge variant="secondary">{item.category}</Badge>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3" />
                     <span>{new Date(item.date).toLocaleDateString()}</span>
@@ -78,7 +83,7 @@ export function NewsFeed() {
               </CardHeader>
               <CardContent>
                 <CardDescription className="leading-relaxed">
-                  {item.description || "Join us for this exciting event!"}
+                  {item.excerpt}
                 </CardDescription>
               </CardContent>
             </Card>
@@ -86,5 +91,5 @@ export function NewsFeed() {
         </div>
       </div>
     </section>
-  );
+  )
 }

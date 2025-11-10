@@ -31,9 +31,19 @@ interface DisplayRecipe {
 }
 
 function transformRecipe(recipe: Recipe): DisplayRecipe {
-  const instructions = recipe.instructions
-    ? recipe.instructions.split("\n").filter((line) => line.trim() !== "")
-    : []
+  let instructions: string[] = []
+  
+  if (recipe.instructions) {
+    if (recipe.instructions.includes("\n")) {
+      instructions = recipe.instructions.split("\n").filter((line) => line.trim() !== "")
+    } else {
+      instructions = recipe.instructions
+        .split(". ")
+        .map((step) => step.trim())
+        .filter((step) => step.length > 0)
+        .map((step) => step.endsWith(".") ? step : step + ".")
+    }
+  }
 
   return {
     id: recipe.recipe_id.toString(),
