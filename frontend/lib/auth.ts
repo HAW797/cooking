@@ -1,6 +1,6 @@
 "use client"
 
-import { authService, setAuthToken, removeAuthToken, getAuthToken } from './api'
+import { authService, setCsrfToken, removeCsrfToken } from './api-client'
 import type { ApiError } from './api-client'
 
 export interface User {
@@ -16,16 +16,11 @@ export interface AuthState {
   isAuthenticated: boolean
   failedAttempts: number
   lockoutUntil: number | null
-  rememberMe: boolean
-  lastActivity: number
 }
 
 const AUTH_STORAGE_KEY = "foodfusion_auth"
-const USER_STORAGE_KEY = "foodfusion_user"
 const LOCKOUT_DURATION = 3 * 60 * 1000
 const MAX_FAILED_ATTEMPTS = 3
-const SESSION_TIMEOUT = 30 * 60 * 1000
-const REMEMBER_ME_DURATION = 30 * 24 * 60 * 60 * 1000
 
 export function getAuthState(): AuthState {
   if (typeof window === "undefined") {
@@ -34,98 +29,47 @@ export function getAuthState(): AuthState {
       isAuthenticated: false,
       failedAttempts: 0,
       lockoutUntil: null,
-      rememberMe: false,
-      lastActivity: Date.now(),
     }
   }
 
   const stored = localStorage.getItem(AUTH_STORAGE_KEY)
   if (!stored) {
-    const token = getAuthToken()
-    const userStr = localStorage.getItem(USER_STORAGE_KEY)
-    
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr)
-        return {
-          user,
-          isAuthenticated: true,
-          failedAttempts: 0,
-          lockoutUntil: null,
-          rememberMe: false,
-          lastActivity: Date.now(),
-        }
-      } catch {
-        removeAuthToken()
-        localStorage.removeItem(USER_STORAGE_KEY)
-      }
-    }
-
     return {
       user: null,
       isAuthenticated: false,
       failedAttempts: 0,
       lockoutUntil: null,
-      rememberMe: false,
-      lastActivity: Date.now(),
     }
   }
 
   try {
     const state = JSON.parse(stored)
-    
-    if (state.isAuthenticated && !state.rememberMe) {
-      const timeSinceLastActivity = Date.now() - state.lastActivity
-      if (timeSinceLastActivity > SESSION_TIMEOUT) {
-        removeAuthToken()
-        localStorage.removeItem(AUTH_STORAGE_KEY)
-        localStorage.removeItem(USER_STORAGE_KEY)
-        return {
-          user: null,
-          isAuthenticated: false,
-          failedAttempts: 0,
-          lockoutUntil: null,
-          rememberMe: false,
-          lastActivity: Date.now(),
-        }
-      }
+    return {
+      user: null,
+      isAuthenticated: false,
+      failedAttempts: state.failedAttempts || 0,
+      lockoutUntil: state.lockoutUntil || null,
     }
-    
-    return state
   } catch {
     return {
       user: null,
       isAuthenticated: false,
       failedAttempts: 0,
       lockoutUntil: null,
-      rememberMe: false,
-      lastActivity: Date.now(),
     }
   }
 }
 
-export function setAuthState(state: AuthState) {
+export function setAuthState(state: Partial<AuthState>) {
   if (typeof window === "undefined") return
   
-  const stateWithActivity = {
-    ...state,
-    lastActivity: Date.now(),
+  const currentState = getAuthState()
+  const newState = {
+    failedAttempts: state.failedAttempts ?? currentState.failedAttempts,
+    lockoutUntil: state.lockoutUntil ?? currentState.lockoutUntil,
   }
   
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(stateWithActivity))
-  
-  if (state.user) {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(state.user))
-  } else {
-    localStorage.removeItem(USER_STORAGE_KEY)
-  }
-}
-
-export function updateActivity() {
-  const state = getAuthState()
-  if (state.isAuthenticated) {
-    setAuthState(state)
-  }
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newState))
 }
 
 export function isAccountLocked(): boolean {
@@ -138,10 +82,8 @@ export function isAccountLocked(): boolean {
   }
 
   setAuthState({
-    ...state,
     failedAttempts: 0,
     lockoutUntil: null,
-    lastActivity: Date.now(),
   })
   return false
 }
@@ -171,10 +113,10 @@ export async function login(
   const state = getAuthState()
 
   try {
-    const response = await authService.login({ email, password })
+    const response = await authService.login({ email, password, remember_me: rememberMe })
 
     if (response.data) {
-      const { token, user: apiUser } = response.data
+      const { csrf_token, user: apiUser } = response.data
 
       const user: User = {
         id: apiUser.user_id,
@@ -184,15 +126,11 @@ export async function login(
         lastName: apiUser.last_name,
       }
 
-      setAuthToken(token)
+      setCsrfToken(csrf_token)
 
       setAuthState({
-        user,
-        isAuthenticated: true,
         failedAttempts: 0,
         lockoutUntil: null,
-        rememberMe,
-        lastActivity: Date.now(),
       })
 
       return { success: true, message: response.message || "Login successful!", user }
@@ -205,10 +143,8 @@ export async function login(
     const shouldLockout = newFailedAttempts >= MAX_FAILED_ATTEMPTS
 
     setAuthState({
-      ...state,
       failedAttempts: newFailedAttempts,
       lockoutUntil: shouldLockout ? Date.now() + LOCKOUT_DURATION : null,
-      lastActivity: Date.now(),
     })
 
     if (shouldLockout) {
@@ -243,21 +179,24 @@ export async function register(
     })
 
     if (response.data) {
-      const { user_id, email: userEmail } = response.data
+      const { user_id, email: userEmail, csrf_token } = response.data
 
-      const loginResult = await login(email, password, true)
-      
-      if (loginResult.success) {
-        return {
-          success: true,
-          message: response.message || "Registration successful! Welcome to FoodFusion!",
-          user: loginResult.user,
-        }
+      if (csrf_token) {
+        setCsrfToken(csrf_token)
+      }
+
+      const user: User = {
+        id: user_id,
+        email: userEmail,
+        name: `${firstName} ${lastName}`,
+        firstName,
+        lastName,
       }
 
       return {
         success: true,
-        message: "Registration successful! Please login to continue.",
+        message: response.message || "Registration successful! Welcome to FoodFusion!",
+        user,
       }
     }
 
@@ -277,14 +216,37 @@ export async function logout(): Promise<void> {
   } catch (error) {
     console.error("Logout API call failed:", error)
   } finally {
-    removeAuthToken()
+    removeCsrfToken()
+    
     setAuthState({
-      user: null,
-      isAuthenticated: false,
       failedAttempts: 0,
       lockoutUntil: null,
-      rememberMe: false,
-      lastActivity: Date.now(),
     })
+  }
+}
+
+export async function checkAuth(): Promise<User | null> {
+  try {
+    const response = await authService.checkAuth()
+    
+    if (response.data && response.data.user) {
+      const apiUser = response.data.user
+      
+      if (response.data.csrf_token) {
+        setCsrfToken(response.data.csrf_token)
+      }
+
+      return {
+        id: apiUser.user_id,
+        email: apiUser.email,
+        name: `${apiUser.first_name} ${apiUser.last_name}`,
+        firstName: apiUser.first_name,
+        lastName: apiUser.last_name,
+      }
+    }
+    
+    return null
+  } catch (error) {
+    return null
   }
 }

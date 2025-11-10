@@ -11,7 +11,7 @@ export default function AboutPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="py-16 bg-muted/30">
+        <section className="py-10 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto text-center">
               <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 text-balance">About FoodFusion</h1>
@@ -131,7 +131,7 @@ export default function AboutPage() {
             <div className="max-w-4xl mx-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                 <div className="relative h-96 rounded-lg overflow-hidden">
-                  <Image src="/team-cooking-together.jpg" alt="Team cooking together" fill className="object-cover" />
+                  <Image src="/cooking-kitchen-food-prep.png" alt="Team cooking together" fill className="object-cover" />
                 </div>
                 <div>
                   <h2 className="text-3xl font-bold text-foreground mb-4">Our Story</h2>

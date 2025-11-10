@@ -100,7 +100,7 @@ export function RecipeCarousel() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {visibleRecipes.map((recipe, idx) => (
               <Link key={`${recipe.id}-${idx}`} href={`/recipes/${recipe.id}`}>
-                <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full">
+                <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full pt-0">
                   <div className="relative h-64 w-full">
                     <Image 
                       src={recipe.image || "/placeholder.svg"} 

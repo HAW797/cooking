@@ -5,7 +5,6 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { AuthGuard } from "@/components/auth-guard"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -14,10 +13,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Pencil, Trash2, Share2 } from "lucide-react"
+import { Plus, Share2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
+import { AuthGuard } from "@/components/auth-guard"
 
 interface CommunityRecipe {
   id: string
@@ -33,101 +33,28 @@ interface CommunityRecipe {
   }
 }
 
-const initialRecipes: CommunityRecipe[] = [
-  {
-    id: "c1",
-    title: "Grandma's Apple Pie",
-    description: "A family recipe passed down through generations with a flaky crust and cinnamon-spiced apples",
-    image: "/apple-pie-homemade.jpg",
-    author: "Sarah Johnson",
-    authorId: "1",
-    likes: 156,
-    createdAt: "2024-06-10",
-    reactions: { heart: 156 },
-  },
-  {
-    id: "c2",
-    title: "Spicy Korean Fried Chicken",
-    description: "Crispy double-fried chicken coated in a sweet and spicy gochujang glaze",
-    image: "/korean-fried-chicken.jpg",
-    author: "David Kim",
-    authorId: "2",
-    likes: 203,
-    createdAt: "2024-06-12",
-    reactions: { heart: 203 },
-  },
-  {
-    id: "c3",
-    title: "Mediterranean Quinoa Salad",
-    description: "Fresh and healthy salad with quinoa, cucumbers, tomatoes, feta, and lemon dressing",
-    image: "/quinoa-salad-mediterranean.jpg",
-    author: "",
-    authorId: "3",
-    likes: 128,
-    createdAt: "2024-06-14",
-    reactions: { heart: 128 },
-  },
-  {
-    id: "c4",
-    title: "Homemade Ramen Bowl",
-    description: "Rich pork broth with noodles, soft-boiled eggs, and traditional toppings",
-    image: "/ramen-bowl-homemade.jpg",
-    author: "Chef Takeshi",
-    authorId: "4",
-    likes: 287,
-    createdAt: "2024-06-08",
-    reactions: { heart: 287 },
-  },
-  {
-    id: "c5",
-    title: "Vegan Chocolate Brownies",
-    description: "Fudgy and decadent brownies made without eggs or dairy",
-    image: "/vegan-chocolate-brownies.jpg",
-    author: "Lisa Green",
-    authorId: "5",
-    likes: 94,
-    createdAt: "2024-06-15",
-    reactions: { heart: 94 },
-  },
-  {
-    id: "c6",
-    title: "Authentic Paella Valenciana",
-    description: "Traditional Spanish rice dish with chicken, rabbit, and vegetables",
-    image: "/paella-valenciana-spanish.jpg",
-    author: "Carlos Rodriguez",
-    authorId: "5",
-    likes: 176,
-    createdAt: "2024-06-11",
-    reactions: { heart: 176 },
-  },
-]
-
 export default function CommunityPage() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [recipes, setRecipes] = useState<CommunityRecipe[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingRecipe, setEditingRecipe] = useState<CommunityRecipe | null>(null)
   const [userReactions, setUserReactions] = useState<Record<string, boolean>>({})
   const [title, setTitle] = useState<string>("")
   const [description, setDescription] = useState<string>("")
   const [imageUrl, setImageUrl] = useState<string>("")
   const [imagePreview, setImagePreview] = useState<string>("")
+  const [isSharing, setIsSharing] = useState(false)
 
-  // Fetch community posts from API
   useEffect(() => {
     const fetchPosts = async () => {
       try {
         setLoading(true)
         const response = await apiClient.get('/api/cookbook.php')
         
-        console.log('API Response:', response)
-        
         if (response.success && response.data?.items) {
           setRecipes(response.data.items)
           
-          // Set user reactions based on API data
           const reactions: Record<string, boolean> = {}
           response.data.items.forEach((item: any) => {
             if (item.userLiked || item.user_liked) {
@@ -154,7 +81,6 @@ export default function CommunityPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      // Check file size (max 500KB for base64)
       if (file.size > 500 * 1024) {
         toast({
           title: "Error",
@@ -164,7 +90,6 @@ export default function CommunityPage() {
         return
       }
 
-      // Check file type
       if (!file.type.startsWith("image/")) {
         toast({
           title: "Error",
@@ -184,75 +109,108 @@ export default function CommunityPage() {
     }
   }
 
-  const handleEdit = (recipe: CommunityRecipe) => {
-    setEditingRecipe(recipe)
-    setTitle(recipe.title)
-    setDescription(recipe.description)
-    setImageUrl(recipe.image)
-    setModalOpen(true)
-  }
+  const handleReaction = async (recipeId: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to like posts",
+        variant: "destructive",
+      })
+      return
+    }
 
-  const handleDelete = async (recipeId: string) => {
-    if (confirm("Are you sure you want to delete this post?")) {
-      try {
-        const response = await apiClient.delete(`/api/cookbook.php?id=${recipeId}`)
-        
-        if (response.success) {
-          toast({
-            title: "Success",
-            description: "Post deleted successfully",
-          })
-          
-          // Refresh the posts list
-          const refreshResponse = await apiClient.get('/api/cookbook.php')
-          if (refreshResponse.success && refreshResponse.data?.items) {
-            setRecipes(refreshResponse.data.items)
+    const hasReacted = userReactions[recipeId]
+
+    try {
+      setRecipes(
+        recipes.map((r) => {
+          if (r.id === recipeId) {
+            return {
+              ...r,
+              reactions: {
+                heart: hasReacted ? r.reactions.heart - 1 : r.reactions.heart + 1,
+              },
+            }
           }
-        }
-      } catch (error) {
-        console.error('Error deleting post:', error)
+          return r
+        }),
+      )
+
+      setUserReactions({
+        ...userReactions,
+        [recipeId]: !hasReacted,
+      })
+
+      const response = await apiClient.post(`/api/cookbook_like.php?id=${recipeId}`)
+      
+      if (!response.success) {
+        setRecipes(
+          recipes.map((r) => {
+            if (r.id === recipeId) {
+              return {
+                ...r,
+                reactions: {
+                  heart: hasReacted ? r.reactions.heart + 1 : r.reactions.heart - 1,
+                },
+              }
+            }
+            return r
+          }),
+        )
+
+        setUserReactions({
+          ...userReactions,
+          [recipeId]: hasReacted,
+        })
+
         toast({
           title: "Error",
-          description: "Failed to delete post",
+          description: "Failed to update reaction. Please try again.",
           variant: "destructive",
         })
       }
-    }
-  }
-
-  const handleReaction = (recipeId: string) => {
-    const hasReacted = userReactions[recipeId]
-
-    setRecipes(
-      recipes.map((r) => {
-        if (r.id === recipeId) {
-          return {
-            ...r,
-            reactions: {
-              heart: hasReacted ? r.reactions.heart - 1 : r.reactions.heart + 1,
-            },
+    } catch (error) {
+      setRecipes(
+        recipes.map((r) => {
+          if (r.id === recipeId) {
+            return {
+              ...r,
+              reactions: {
+                heart: hasReacted ? r.reactions.heart + 1 : r.reactions.heart - 1,
+              },
+            }
           }
-        }
-        return r
-      }),
-    )
+          return r
+        }),
+      )
 
-    setUserReactions({
-      ...userReactions,
-      [recipeId]: !hasReacted,
-    })
+      setUserReactions({
+        ...userReactions,
+        [recipeId]: hasReacted,
+      })
+
+      toast({
+        title: "Error",
+        description: "Failed to update reaction. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleShare = async (recipe: CommunityRecipe) => {
+    if (isSharing) return
+    
     const shareUrl = `${window.location.origin}/community/${recipe.id}`
-    const shareData = {
-      title: recipe.title,
-      text: recipe.description,
-      url: shareUrl,
-    }
 
     try {
-      if (navigator.share) {
+      setIsSharing(true)
+      
+      const shareData = {
+        title: recipe.title,
+        url: shareUrl,
+      }
+      
+      if (navigator.share && navigator.canShare(shareData)) {
         await navigator.share(shareData)
         toast({
           title: "Success",
@@ -265,8 +223,20 @@ export default function CommunityPage() {
           description: "Post link copied to clipboard!",
         })
       }
-    } catch (error) {
-      console.error("Error sharing:", error)
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        toast({
+          title: "Link Copied",
+          description: "Post link copied to clipboard!",
+        })
+        try {
+          await navigator.clipboard.writeText(shareUrl)
+        } catch (clipboardError) {
+          window.prompt("Copy this link:", shareUrl)
+        }
+      }
+    } finally {
+      setIsSharing(false)
     }
   }
 
@@ -281,6 +251,15 @@ export default function CommunityPage() {
       })
       return
     }
+    
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create posts",
+        variant: "destructive",
+      })
+      return
+    }
 
     try {
       const postData = {
@@ -288,52 +267,45 @@ export default function CommunityPage() {
         description,
         image_url: imageUrl || "/placeholder-recipe.jpg",
       }
-
-      if (editingRecipe) {
-        // Update existing post
-        const response = await apiClient.put(`/api/cookbook.php?id=${editingRecipe.id}`, postData)
-        
-        if (response.success) {
-          toast({
-            title: "Success",
-            description: "Your post has been updated!",
-          })
-          
-          // Refresh the posts list
-          const refreshResponse = await apiClient.get('/api/cookbook.php')
-          if (refreshResponse.success && refreshResponse.data?.items) {
-            setRecipes(refreshResponse.data.items)
-          }
+      
+      const response = await apiClient.post('/api/cookbook.php', postData)
+      
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Your post has been shared with the community!",
+        })
+        const refreshResponse = await apiClient.get('/api/cookbook.php')
+        if (refreshResponse.success && refreshResponse.data?.items) {
+          setRecipes(refreshResponse.data.items)
         }
+        
+        setModalOpen(false)
+        setTitle("")
+        setDescription("")
+        setImageUrl("")
+        setImagePreview("")
       } else {
-        // Create new post
-        const response = await apiClient.post('/api/cookbook.php', postData)
-        
-        if (response.success) {
-          toast({
-            title: "Success",
-            description: "Your post has been shared with the community!",
-          })
-          
-          // Refresh the posts list
-          const refreshResponse = await apiClient.get('/api/cookbook.php')
-          if (refreshResponse.success && refreshResponse.data?.items) {
-            setRecipes(refreshResponse.data.items)
-          }
-        }
+        toast({
+          title: "Error",
+          description: response.message || "Failed to create post",
+          variant: "destructive",
+        })
       }
-
-      setModalOpen(false)
-      setEditingRecipe(null)
-      setTitle("")
-      setDescription("")
-      setImageUrl("")
-      setImagePreview("")
-    } catch (error) {
-      console.error('Error saving post:', error)
+    } catch (error: any) {
+      let errorMessage = "Failed to save post. Please try again."
+      
+      if (error?.status === 401) {
+        errorMessage = "You must be logged in to create posts. Please log in and try again."
+      } else if (error?.status === 413) {
+        errorMessage = "Image is too large. Please use a smaller image."
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to save post. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       })
     }
@@ -342,10 +314,10 @@ export default function CommunityPage() {
   const handleModalClose = (open: boolean) => {
     setModalOpen(open)
     if (!open) {
-      setEditingRecipe(null)
       setTitle("")
       setDescription("")
       setImageUrl("")
+      setImagePreview("")
     }
   }
 
@@ -393,28 +365,7 @@ export default function CommunityPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {recipes.map((recipe) => (
-                  <Card key={recipe.id} className="overflow-hidden hover:shadow-lg transition-shadow relative">
-                    {user?.id.toString() === recipe.authorId && (
-                      <div className="absolute top-3 right-3 z-10 flex gap-2">
-                        <Button
-                          variant="secondary"
-                          size="icon"
-                          onClick={() => handleEdit(recipe)}
-                          className="h-8 w-8 shadow-md"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="icon"
-                          onClick={() => handleDelete(recipe.id)}
-                          className="h-8 w-8 shadow-md text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-
+                  <Card key={recipe.id} className="overflow-hidden hover:shadow-lg transition-shadow relative pt-0">
                     <Link href={`/community/${recipe.id}`}>
                       <div className="relative h-56 w-full">
                         <Image
@@ -451,7 +402,13 @@ export default function CommunityPage() {
                           <span className="text-sm font-medium">{recipe.reactions.heart}</span>
                         </Button>
                         <div className="flex-1" />
-                        <Button variant="ghost" size="sm" onClick={() => handleShare(recipe)} className="ml-auto">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleShare(recipe)} 
+                          disabled={isSharing}
+                          className="ml-auto"
+                        >
                           <Share2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -469,11 +426,9 @@ export default function CommunityPage() {
         <Dialog open={modalOpen} onOpenChange={handleModalClose}>
           <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingRecipe ? "Edit Post" : "Create Post"}</DialogTitle>
+              <DialogTitle>Create Post</DialogTitle>
               <DialogDescription>
-                {editingRecipe
-                  ? "Update your post details below."
-                  : "Share your culinary experience with the FoodFusion community. Fill in the details below."}
+                Share your culinary experience with the FoodFusion community. Fill in the details below.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -535,7 +490,7 @@ export default function CommunityPage() {
                   Cancel
                 </Button>
                 <Button type="submit" className="flex-1">
-                  {editingRecipe ? "Update Post" : "Create Post"}
+                  Create Post
                 </Button>
               </div>
             </form>

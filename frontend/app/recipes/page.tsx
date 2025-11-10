@@ -259,7 +259,7 @@ export default function RecipesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredRecipes.map((recipe) => (
                   <Link key={recipe.id} href={`/recipes/${recipe.id}`}>
-                    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full">
+                    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full pt-0">
                       <div className="relative h-56 w-full">
                         <Image
                           src={recipe.image || "/placeholder.svg"}

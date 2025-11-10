@@ -11,10 +11,29 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $body = read_json_body();
 $email = trim($body['email'] ?? '');
 $password = (string)($body['password'] ?? '');
+$rememberMe = (bool)($body['remember_me'] ?? false);
 
-// Check if email is provided
+$errors = [];
+
+// Check if all required fields are provided
 if (empty($email)) {
-    error_response('Email is required', 400);
+    $errors[] = 'Email is required';
+}
+
+if (empty($password)) {
+    $errors[] = 'Password is required';
+}
+
+if (!empty($errors)) {
+    json_response([
+        'message' => 'All fields are required',
+        'errors' => $errors
+    ], 400);
+}
+
+// Email format validation
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    error_response('Valid email is required', 400);
 }
 
 // Check if account is locked out
@@ -38,10 +57,14 @@ if (!$user || !password_verify($password, $user['password_hash'])) {
 // Login successful - clear any previous failed attempts
 clear_login_attempts($email);
 
-$token = create_session_token((int)$user['user_id']);
+// Use session-based authentication (cookies)
+login_user($user, $rememberMe);
+
+// Generate and return CSRF token
+$csrf_token = generate_csrf_token();
 
 success_response('Login successful', [
-    'token' => $token,
+    'csrf_token' => $csrf_token,
     'user' => [
         'user_id' => (int)$user['user_id'],
         'first_name' => $user['first_name'],

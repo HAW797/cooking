@@ -69,7 +69,21 @@ $insertStmt->execute([$firstName, $lastName, $email, $passwordHash]);
 
 $userId = (int)$pdo->lastInsertId();
 
+// Auto-login after registration
+$user = [
+    'user_id' => $userId,
+    'first_name' => $firstName,
+    'last_name' => $lastName,
+    'email' => $email
+];
+
+login_user($user, true); // Auto-remember for 30 days
+
+// Generate and return CSRF token
+$csrf_token = generate_csrf_token();
+
 success_response('User registered successfully', [
     'user_id' => $userId,
-    'email' => $email
+    'email' => $email,
+    'csrf_token' => $csrf_token
 ], 201);

@@ -15,12 +15,12 @@ if (in_array($origin, $allowedOrigins)) {
     header('Access-Control-Allow-Origin: *');
 }
 
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-CSRF-Token');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Max-Age: 86400');
 header('Content-Type: application/json; charset=UTF-8');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
@@ -60,6 +60,168 @@ function read_json_body(): array
     return is_array($data) ? $data : [];
 }
 
+function generate_csrf_token(): string
+{
+    if (!isset($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function verify_csrf_token(?string $token): bool
+{
+    if (!isset($_SESSION['csrf_token']) || empty($token)) {
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+function get_csrf_token_from_request(): ?string
+{
+    $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
+    if ($token) {
+        return $token;
+    }
+    
+    $body = read_json_body();
+    return $body['csrf_token'] ?? null;
+}
+
+function require_csrf_token(): void
+{
+    $token = get_csrf_token_from_request();
+    if (!verify_csrf_token($token)) {
+        error_response('Invalid or missing CSRF token', 403);
+    }
+}
+
+function login_user(array $user, bool $rememberMe = false): void
+{
+    session_regenerate_id(true);
+    
+    $_SESSION['user_id'] = (int)$user['user_id'];
+    $_SESSION['user_email'] = $user['email'];
+    $_SESSION['user_first_name'] = $user['first_name'];
+    $_SESSION['user_last_name'] = $user['last_name'];
+    $_SESSION['authenticated'] = true;
+    $_SESSION['CREATED_AT'] = time();
+    $_SESSION['LAST_ACTIVITY'] = time();
+    
+    generate_csrf_token();
+    
+    if ($rememberMe) {
+        $token = bin2hex(random_bytes(32));
+        $pdo = get_pdo();
+        
+        $stmt = $pdo->prepare('INSERT INTO user_session (session_token, user_id, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))');
+        $stmt->execute([$token, $user['user_id']]);
+        
+        setcookie(
+            'remember_token',
+            $token,
+            [
+                'expires' => time() + REMEMBER_ME_LIFETIME,
+                'path' => '/',
+                'domain' => '',
+                'secure' => false,
+                'httponly' => true,
+                'samesite' => 'Lax'
+            ]
+        );
+    }
+}
+
+function logout_user(): void
+{
+    if (isset($_COOKIE['remember_token'])) {
+        $token = $_COOKIE['remember_token'];
+        $pdo = get_pdo();
+        $stmt = $pdo->prepare('DELETE FROM user_session WHERE session_token = ?');
+        $stmt->execute([$token]);
+        
+        setcookie(
+            'remember_token',
+            '',
+            [
+                'expires' => time() - 3600,
+                'path' => '/',
+                'domain' => '',
+                'secure' => false,
+                'httponly' => true,
+                'samesite' => 'Lax'
+            ]
+        );
+    }
+    
+    $_SESSION = [];
+    
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(
+            session_name(),
+            '',
+            [
+                'expires' => time() - 3600,
+                'path' => isset($params['path']) ? $params['path'] : '/',
+                'domain' => isset($params['domain']) ? $params['domain'] : '',
+                'secure' => isset($params['secure']) ? $params['secure'] : false,
+                'httponly' => isset($params['httponly']) ? $params['httponly'] : true,
+                'samesite' => isset($params['samesite']) ? $params['samesite'] : 'Lax'
+            ]
+        );
+    }
+    
+    @session_destroy();
+}
+
+function is_authenticated(): bool
+{
+    return isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true && isset($_SESSION['user_id']);
+}
+
+function get_authenticated_user(): ?array
+{
+    if (!is_authenticated()) {
+        if (isset($_COOKIE['remember_token'])) {
+            $token = $_COOKIE['remember_token'];
+            $pdo = get_pdo();
+            
+            $stmt = $pdo->prepare('
+                SELECT u.user_id, u.first_name, u.last_name, u.email 
+                FROM user_session s 
+                JOIN user u ON u.user_id = s.user_id 
+                WHERE s.session_token = ? 
+                AND (s.expires_at IS NULL OR s.expires_at > NOW())
+            ');
+            $stmt->execute([$token]);
+            $user = $stmt->fetch();
+            
+            if ($user) {
+                login_user($user, true);
+                return $user;
+            }
+        }
+        
+        return null;
+    }
+    
+    return [
+        'user_id' => $_SESSION['user_id'],
+        'email' => $_SESSION['user_email'],
+        'first_name' => $_SESSION['user_first_name'],
+        'last_name' => $_SESSION['user_last_name']
+    ];
+}
+
+function require_auth(): array
+{
+    $user = get_authenticated_user();
+    if (!$user) {
+        error_response('Authentication required', 401);
+    }
+    return $user;
+}
+
 function bearer_token(): ?string
 {
     $hdr = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
@@ -86,32 +248,6 @@ function revoke_session_token(string $token): void
     $stmt->execute([$token]);
 }
 
-function get_authenticated_user(): ?array
-{
-    $pdo = get_pdo();
-    $token = bearer_token();
-    if (!$token) {
-        return null;
-    }
-    $stmt = $pdo->prepare('SELECT u.user_id, u.first_name, u.last_name, u.email 
-                           FROM user_session s 
-                           JOIN user u ON u.user_id=s.user_id 
-                           WHERE s.session_token=? 
-                           AND (s.expires_at IS NULL OR s.expires_at > NOW())');
-    $stmt->execute([$token]);
-    $user = $stmt->fetch();
-    return $user ?: null;
-}
-
-function require_auth(): array
-{
-    $user = get_authenticated_user();
-    if (!$user) {
-        error_response('Authentication required', 401);
-    }
-    return $user;
-}
-
 function check_login_lockout(string $email): void
 {
     $pdo = get_pdo();
@@ -127,7 +263,6 @@ function check_login_lockout(string $email): void
             $minutesRemaining = ceil(($lockedUntil->getTimestamp() - $now->getTimestamp()) / 60);
             error_response("Account locked due to too many failed login attempts. Please try again in {$minutesRemaining} minute(s).", 423);
         } else {
-            // Lockout expired, clear it
             clear_login_attempts($email);
         }
     }
@@ -139,7 +274,6 @@ function record_failed_login(string $email): void
     $maxAttempts = 3;
     $lockoutMinutes = 3;
 
-    // Get current attempts
     $stmt = $pdo->prepare('SELECT attempts FROM login_attempts WHERE email = ?');
     $stmt->execute([$email]);
     $attempt = $stmt->fetch();
@@ -148,18 +282,15 @@ function record_failed_login(string $email): void
         $newAttempts = (int)$attempt['attempts'] + 1;
 
         if ($newAttempts >= $maxAttempts) {
-            // Lock the account for 3 minutes
             $lockedUntil = date('Y-m-d H:i:s', strtotime("+{$lockoutMinutes} minutes"));
             $stmt = $pdo->prepare('UPDATE login_attempts SET attempts = ?, locked_until = ?, last_attempt_at = NOW() WHERE email = ?');
             $stmt->execute([$newAttempts, $lockedUntil, $email]);
             error_response("Too many failed login attempts. Your account has been locked for {$lockoutMinutes} minutes.", 423);
         } else {
-            // Increment attempts
             $stmt = $pdo->prepare('UPDATE login_attempts SET attempts = ?, last_attempt_at = NOW() WHERE email = ?');
             $stmt->execute([$newAttempts, $email]);
         }
     } else {
-        // First failed attempt
         $stmt = $pdo->prepare('INSERT INTO login_attempts (email, attempts, last_attempt_at) VALUES (?, 1, NOW())');
         $stmt->execute([$email]);
     }

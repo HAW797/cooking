@@ -36,6 +36,7 @@ export function AuthModal({
   const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [serverError, setServerError] = useState("");
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(
     null
   );
@@ -79,16 +80,17 @@ export function AuthModal({
     e.preventDefault();
     setLoading(true);
     setErrors({}); // Clear previous errors
+    setServerError(""); // Clear previous server error
 
     try {
       if (mode === "login") {
         const result = await login(email, password);
 
-         if (result.isLocked) {
-           setIsLocked(true);
-           setAttemptsRemaining(0);
-           setErrors({ password: "Your account is locked. Please wait" });
-         } else if (result.errors) {
+        if (result.isLocked) {
+          setIsLocked(true);
+          setAttemptsRemaining(0);
+          setErrors({ password: "Your account is locked. Please wait" });
+        } else if (result.errors) {
           setErrors(result.errors);
           if (result.attemptsRemaining !== undefined) {
             setAttemptsRemaining(result.attemptsRemaining);
@@ -121,11 +123,8 @@ export function AuthModal({
           setErrors(result.errors);
         }
         if (!result.success && !result.errors) {
-          toast({
-            title: "Error",
-            description: result.message,
-            variant: "destructive",
-          });
+          // Show server-side errors at the top of the dialog
+          setServerError(result.message);
         }
         if (result.success) {
           toast({
@@ -138,6 +137,7 @@ export function AuthModal({
           setFirstName("");
           setLastName("");
           setErrors({});
+          setServerError("");
         }
       }
     } catch (error) {
@@ -165,6 +165,38 @@ export function AuthModal({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "login" && (isLocked || attemptsRemaining !== null) && (
+            <div className="mt-1 bg-red-500/10 p-2 rounded-md border border-red-500/20 text-center">
+              <div className="flex items-center gap-2 justify-center">
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+                <p className="text-sm text-red-500">
+                  {isLocked ? "Your account is locked. Please wait" : "Invalid credentials."}
+                  {isLocked && countdown > 0 && (
+                    <span className="font-mono font-bold ml-1">
+                      {formatCountdown(countdown)}
+                    </span>
+                  )}
+                  {attemptsRemaining !== null && attemptsRemaining > 0 && (
+                    <span className="ml-2">
+                      <span className="font-bold">
+                        {attemptsRemaining} attempt
+                        {attemptsRemaining !== 1 ? "s" : ""}
+                      </span>
+                      {" "}remaining
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+          {mode === "register" && serverError && (
+            <div className="mt-1 bg-red-500/10 p-2 rounded-md border border-red-500/20 text-center">
+              <div className="flex items-center gap-2 justify-center">
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+                <p className="text-sm text-red-500">{serverError}</p>
+              </div>
+            </div>
+          )}
           {mode === "register" && (
             <>
               <div className="space-y-2">
@@ -179,11 +211,14 @@ export function AuthModal({
                     if (errors.firstName) {
                       setErrors((prev) => ({ ...prev, firstName: "" }));
                     }
+                    if (serverError) {
+                      setServerError("");
+                    }
                   }}
                   className={errors.firstName ? "border-red-500" : ""}
                 />
                 {errors.firstName && (
-                  <p className="text-sm text-red-500 mt-1">
+                  <p className="text-sm text-red-500 -mt-1">
                     {errors.firstName}
                   </p>
                 )}
@@ -200,11 +235,16 @@ export function AuthModal({
                     if (errors.lastName) {
                       setErrors((prev) => ({ ...prev, lastName: "" }));
                     }
+                    if (serverError) {
+                      setServerError("");
+                    }
                   }}
                   className={errors.lastName ? "border-red-500" : ""}
                 />
                 {errors.lastName && (
-                  <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>
+                  <p className="text-sm text-red-500 -mt-1">
+                    {errors.lastName}
+                  </p>
                 )}
               </div>
             </>
@@ -221,12 +261,15 @@ export function AuthModal({
                 if (errors.email) {
                   setErrors((prev) => ({ ...prev, email: "" }));
                 }
+                if (serverError) {
+                  setServerError("");
+                }
               }}
               className={errors.email ? "border-red-500" : ""}
               disabled={mode === "login" && isLocked}
             />
             {errors.email && (
-              <p className="text-sm text-red-500 mt-1">{errors.email}</p>
+              <p className="text-sm text-red-500 -mt-1">{errors.email}</p>
             )}
           </div>
           <div className="space-y-2">
@@ -238,41 +281,17 @@ export function AuthModal({
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
-                if (errors.password) {
-                  setErrors((prev) => ({ ...prev, password: "" }));
-                  setAttemptsRemaining(null);
+                if (serverError) {
+                  setServerError("");
                 }
               }}
               className={errors.password ? "border-red-500" : ""}
               disabled={mode === "login" && isLocked}
             />
-            {errors.password && (
-              <div className="space-y-1 mt-1">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-red-500">
-                    {errors.password}
-                    {mode === "login" && isLocked && countdown > 0 && (
-                      <span className="font-mono font-bold ml-1">
-                        {formatCountdown(countdown)}
-                      </span>
-                    )}
-                  </p>
-                </div>
-                {attemptsRemaining !== null && attemptsRemaining > 0 && (
-                  <p className="text-sm text-orange-600 font-medium">
-                    {attemptsRemaining} attempt
-                    {attemptsRemaining !== 1 ? "s" : ""} remaining
-                  </p>
-                )}
-              </div>
+            {errors.password && !(mode === "login" && (isLocked || attemptsRemaining !== null)) && (
+              <p className="text-sm text-red-500 -mt-1">{errors.password}</p>
             )}
           </div>
-          {mode === "login" && !isLocked && (
-            <p className="text-xs text-muted-foreground">
-              Demo credentials: demo@foodfusion.com / demo123
-            </p>
-          )}
           <Button
             type="submit"
             className="w-full"

@@ -4,10 +4,11 @@ import { API_CONFIG } from '../config'
 export interface LoginRequest {
   email: string
   password: string
+  remember_me?: boolean
 }
 
 export interface LoginResponse {
-  token: string
+  csrf_token: string
   user: {
     user_id: number
     first_name: string
@@ -26,6 +27,17 @@ export interface RegisterRequest {
 export interface RegisterResponse {
   user_id: number
   email: string
+  csrf_token: string
+}
+
+export interface CheckAuthResponse {
+  user: {
+    user_id: number
+    first_name: string
+    last_name: string
+    email: string
+  }
+  csrf_token: string
 }
 
 export interface ForgotPasswordRequest {
@@ -44,6 +56,10 @@ export const authService = {
 
   async logout(): Promise<ApiResponse> {
     return apiClient.post(API_CONFIG.endpoints.logout)
+  },
+
+  async checkAuth(): Promise<ApiResponse<CheckAuthResponse>> {
+    return apiClient.get<CheckAuthResponse>(API_CONFIG.endpoints.checkAuth)
   },
 
   async forgotPassword(data: ForgotPasswordRequest): Promise<ApiResponse> {

@@ -1,5 +1,7 @@
 export const API_CONFIG = {
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
+  baseURL: process.env.NODE_ENV === 'production' 
+    ? (process.env.NEXT_PUBLIC_API_BASE_URL || '') 
+    : '',
   
   timeout: parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000', 10),
   
@@ -7,11 +9,12 @@ export const API_CONFIG = {
     login: '/api/login.php',
     register: '/api/register.php',
     logout: '/api/logout.php',
+    checkAuth: '/api/check_auth.php',
     forgotPassword: '/api/forgot_password.php',
     
     recipes: '/api/recipes.php',
-    
     resources: '/api/resources.php',
+    events: '/api/events.php',
     
     lookups: '/api/lookups.php',
     

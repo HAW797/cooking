@@ -16,7 +16,8 @@ function formatRecipeWithRelatedData($recipe, $pdo = null, $currentUserId = null
 {
     $formatted = [
         'post_id' => (int)$recipe['post_id'],
-        'recipe_title' => $recipe['recipe_title'],
+        'post_title' => $recipe['post_title'],
+        'title' => $recipe['post_title'], // Alias for frontend compatibility
         'description' => $recipe['description'],
         'image_url' => $recipe['image_url'],
         'created_at' => $recipe['created_at'],
@@ -52,7 +53,7 @@ if ($method === 'GET') {
     $stmt = $pdo->prepare('
         SELECT 
             c.post_id, 
-            c.recipe_title, 
+            c.post_title, 
             c.description, 
             c.image_url, 
             c.created_at,
@@ -86,8 +87,8 @@ if ($method === 'GET') {
         $posts[] = [
             'id' => (string)$postId,
             'post_id' => $postId,
-            'title' => $post['recipe_title'],
-            'recipe_title' => $post['recipe_title'],
+            'title' => $post['post_title'],
+            'post_title' => $post['post_title'],
             'description' => $post['description'],
             'image' => $post['image_url'],
             'image_url' => $post['image_url'],
@@ -118,7 +119,7 @@ if ($method === 'POST') {
     }
     
     $body = read_json_body();
-    $title = trim($body['title'] ?? $body['recipe_title'] ?? '');
+    $title = trim($body['title'] ?? $body['post_title'] ?? '');
     $description = trim($body['description'] ?? '');
     $imageUrl = $body['image_url'] ?? $body['image'] ?? null;
 
@@ -132,7 +133,7 @@ if ($method === 'POST') {
 
     try {
         $stmt = $pdo->prepare('INSERT INTO community_cookbook 
-                              (user_id, recipe_title, description, image_url) 
+                              (user_id, post_title, description, image_url) 
                               VALUES (?, ?, ?, ?)');
         
         $stmt->execute([
@@ -154,7 +155,7 @@ if ($method === 'POST') {
     $fetchStmt = $pdo->prepare('
         SELECT 
             c.post_id, 
-            c.recipe_title, 
+            c.post_title, 
             c.description, 
             c.image_url, 
             c.created_at,
@@ -171,8 +172,8 @@ if ($method === 'POST') {
         $post = [
             'id' => (string)$postId,
             'post_id' => $postId,
-            'title' => $createdPost['recipe_title'],
-            'recipe_title' => $createdPost['recipe_title'],
+            'title' => $createdPost['post_title'],
+            'post_title' => $createdPost['post_title'],
             'description' => $createdPost['description'],
             'image' => $createdPost['image_url'],
             'image_url' => $createdPost['image_url'],
@@ -222,7 +223,7 @@ if ($method === 'PUT' || $method === 'DELETE') {
 
 if ($method === 'PUT') {
     $body = read_json_body();
-    $title = trim($body['title'] ?? $body['recipe_title'] ?? '');
+    $title = trim($body['title'] ?? $body['post_title'] ?? '');
     $description = trim($body['description'] ?? '');
     $imageUrl = $body['image_url'] ?? $body['image'] ?? null;
 
@@ -231,7 +232,7 @@ if ($method === 'PUT') {
     }
 
     $stmt = $pdo->prepare('UPDATE community_cookbook 
-                          SET recipe_title = ?, 
+                          SET post_title = ?, 
                               description = ?, 
                               image_url = ? 
                           WHERE post_id = ? AND user_id = ?');

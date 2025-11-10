@@ -5,10 +5,10 @@ export interface Resource {
   resource_id: number
   title: string
   description: string
+  topic: string | null
   resource_type: 'Culinary' | 'Educational'
-  file_url?: string
-  external_url?: string
-  created_at?: string
+  file_url: string
+  created_at: string
 }
 
 export interface ResourcesResponse {
@@ -16,24 +16,21 @@ export interface ResourcesResponse {
   count: number
 }
 
-export interface ResourceFilters {
-  type?: 'Culinary' | 'Educational'
+export interface CreateResourceRequest {
+  title: string
+  description: string
+  topic?: string
+  resource_type: 'Culinary' | 'Educational'
+  file_url: string
 }
 
 export const resourcesService = {
-  async getResources(filters?: ResourceFilters): Promise<ApiResponse<ResourcesResponse>> {
-    return apiClient.get<ResourcesResponse>(API_CONFIG.endpoints.resources, filters)
+  async getResources(type?: 'Culinary' | 'Educational'): Promise<ApiResponse<ResourcesResponse>> {
+    const endpoint = type ? `${API_CONFIG.endpoints.resources}?type=${type}` : API_CONFIG.endpoints.resources
+    return apiClient.get<ResourcesResponse>(endpoint)
   },
 
-  async getResourceById(id: number): Promise<ApiResponse<Resource>> {
-    return apiClient.get<Resource>(`${API_CONFIG.endpoints.resources}?id=${id}`)
-  },
-
-  getDownloadUrl(fileUrl: string): string {
-    if (fileUrl.startsWith('http')) {
-      return fileUrl
-    }
-    return `${API_CONFIG.baseURL}${fileUrl}`
+  async createResource(data: CreateResourceRequest): Promise<ApiResponse> {
+    return apiClient.post(API_CONFIG.endpoints.resources, data)
   },
 }
-

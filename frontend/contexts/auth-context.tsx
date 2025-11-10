@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { type User, getAuthState, login as authLogin, register as authRegister, logout as authLogout, updateActivity, isAccountLocked, getRemainingLockoutTime as getAuthLockoutTime } from "@/lib/auth"
+import { type User, getAuthState, login as authLogin, register as authRegister, logout as authLogout, isAccountLocked, getRemainingLockoutTime as getAuthLockoutTime, checkAuth } from "@/lib/auth"
 import { z } from "zod"
 
 // Validation schemas
@@ -76,37 +76,41 @@ const  AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const initialState = getAuthState()
-  const [user, setUser] = useState<User | null>(initialState.user)
-  const [isAuthenticated, setIsAuthenticated] = useState(initialState.isAuthenticated)
-  const [loading, setLoading] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(initialState.lockoutUntil)
 
+  // Check authentication status on mount (validates session cookie)
+  useEffect(() => {
+    const validateSession = async () => {
+      try {
+        const authenticatedUser = await checkAuth()
+        if (authenticatedUser) {
+          setUser(authenticatedUser)
+          setIsAuthenticated(true)
+        } else {
+          setUser(null)
+          setIsAuthenticated(false)
+        }
+      } catch (error) {
+        setUser(null)
+        setIsAuthenticated(false)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    validateSession()
+  }, [])
+
+  // Update lockout state from localStorage
   useEffect(() => {
     const state = getAuthState()
-    if (state.user !== user || state.isAuthenticated !== isAuthenticated) {
-      setUser(state.user)
-      setIsAuthenticated(state.isAuthenticated)
-    }
     if (state.lockoutUntil !== lockoutUntil) {
       setLockoutUntil(state.lockoutUntil)
     }
-
-    if (state.isAuthenticated) {
-      const handleActivity = () => updateActivity()
-      
-      window.addEventListener('mousemove', handleActivity)
-      window.addEventListener('keydown', handleActivity)
-      window.addEventListener('click', handleActivity)
-      window.addEventListener('scroll', handleActivity)
-
-      return () => {
-        window.removeEventListener('mousemove', handleActivity)
-        window.removeEventListener('keydown', handleActivity)
-        window.removeEventListener('click', handleActivity)
-        window.removeEventListener('scroll', handleActivity)
-      }
-    }
-  }, [isAuthenticated])
+  }, [])
 
   const login = async (email: string, password: string) => {
     // Check if account is locked

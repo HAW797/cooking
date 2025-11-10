@@ -13,6 +13,20 @@ export interface ApiError {
   error?: string
 }
 
+let csrfToken: string | null = null
+
+export function getCsrfToken(): string | null {
+  return csrfToken
+}
+
+export function setCsrfToken(token: string): void {
+  csrfToken = token
+}
+
+export function removeCsrfToken(): void {
+  csrfToken = null
+}
+
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null
   return localStorage.getItem(API_CONFIG.storageKeys.authToken)
@@ -54,6 +68,11 @@ class ApiClient {
       })
     }
 
+    const csrf = getCsrfToken()
+    if (csrf && (options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE')) {
+      headers['X-CSRF-Token'] = csrf
+    }
+
     const token = getAuthToken()
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
@@ -66,11 +85,16 @@ class ApiClient {
       const response = await fetch(url, {
         ...options,
         headers,
+        credentials: 'include',
         signal: controller.signal,
       })
 
       clearTimeout(timeoutId)
       const data: ApiResponse<T> = await response.json()
+
+      if (data.data && typeof data.data === 'object' && 'csrf_token' in data.data) {
+        setCsrfToken((data.data as any).csrf_token)
+      }
 
       if (!response.ok) {
         throw {
@@ -179,6 +203,7 @@ class ApiClient {
         method: 'POST',
         headers,
         body: formData,
+        credentials: 'include',
         signal: controller.signal,
       })
 
@@ -212,4 +237,6 @@ class ApiClient {
 
 export const apiClient = new ApiClient()
 export default apiClient
+
+export { authService } from './api/auth.service'
 

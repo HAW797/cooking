@@ -51,3 +51,5 @@ Thumbs.db
 # bun.lockb
 # yarn.lock
 
+/backend/sessions/*
+!backend/sessions/.gitkeep

@@ -3,24 +3,17 @@ import { API_CONFIG } from '../config'
 
 export interface CookbookRecipe {
   post_id: number
-  recipe_title: string
+  post_title: string
+  title?: string
   description: string
   image_url?: string
-  cuisine_type_id?: number
-  dietary_id?: number
-  difficulty_id?: number
-  prep_time?: number
-  cook_time?: number
-  servings?: number
-  instructions?: string
-  cuisine_name?: string
-  dietary_name?: string
-  difficulty_level?: string
   user_id?: number
+  author?: string
   created_at?: string
-  updated_at?: string
   likes_count?: number
+  like_count?: number
   is_liked?: boolean
+  user_liked?: boolean
 }
 
 export interface CookbookResponse {
@@ -29,20 +22,15 @@ export interface CookbookResponse {
 }
 
 export interface CreateCookbookRecipeRequest {
-  recipe_title: string
+  title?: string
+  post_title?: string
   description: string
   image_url?: string
-  cuisine_type_id?: number
-  dietary_id?: number
-  difficulty_id?: number
-  prep_time?: number
-  cook_time?: number
-  servings?: number
-  instructions?: string
 }
 
 export interface UpdateCookbookRecipeRequest extends Partial<CreateCookbookRecipeRequest> {
-  recipe_title: string
+  title?: string
+  post_title?: string
 }
 
 export interface CreateRecipeResponse {

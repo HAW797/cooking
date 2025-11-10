@@ -1,50 +1,100 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
-import { Mail, MapPin, Phone, Clock } from "lucide-react"
+import { useState, useEffect } from "react";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Mail, MapPin, Phone, Clock } from "lucide-react";
+import { contactService, type Subject } from "@/lib/api/contact.service";
 
 export default function ContactPage() {
-  const { toast } = useToast()
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [subject, setSubject] = useState("")
-  const [message, setMessage] = useState("")
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [message, setMessage] = useState("");
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const response = await contactService.getSubjects();
+        if (response.success && response.data?.subjects) {
+          setSubjects(response.data.subjects);
+        }
+      } catch (error) {
+        
+      }
+    };
 
-    if (!name || !email || !subject || !message) {
+    fetchSubjects();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!name || !email || !subjectId || !message) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    // Simulate form submission
-    toast({
-      title: "Message Sent!",
-      description: "Thank you for contacting us. We'll get back to you within 24-48 hours.",
-    })
+    setIsLoading(true);
 
-    // Reset form
-    setName("")
-    setEmail("")
-    setSubject("")
-    setMessage("")
-  }
+    try {
+      const response = await contactService.sendMessage({
+        name,
+        email,
+        subject_id: parseInt(subjectId),
+        message,
+      });
+
+      if (response.success) {
+        toast({
+          title: "Message Sent!",
+          description:
+            "Thank you for contacting us. We'll get back to you within 24-48 hours.",
+        });
+
+        setName("");
+        setEmail("");
+        setSubjectId("");
+        setMessage("");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -52,13 +102,16 @@ export default function ContactPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="py-16 bg-muted/30">
+        <section className="py-10 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto text-center">
-              <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 text-balance">Get in Touch</h1>
+              <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 text-balance">
+                Get in Touch
+              </h1>
               <p className="text-lg text-muted-foreground leading-relaxed">
-                Have questions, suggestions, or just want to say hello? We'd love to hear from you. Our team is here to
-                help and support your culinary journey.
+                Have questions, suggestions, or just want to say hello? We'd
+                love to hear from you. Our team is here to help and support your
+                culinary journey.
               </p>
             </div>
           </div>
@@ -73,7 +126,10 @@ export default function ContactPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Send Us a Message</CardTitle>
-                    <CardDescription>Fill out the form below and we'll respond as soon as possible</CardDescription>
+                    <CardDescription>
+                      Fill out the form below and we'll respond as soon as
+                      possible
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -103,17 +159,20 @@ export default function ContactPage() {
 
                       <div className="space-y-2">
                         <Label htmlFor="subject">Subject</Label>
-                        <Select value={subject} onValueChange={setSubject} required>
+                        <Select
+                          value={subjectId}
+                          onValueChange={setSubjectId}
+                          required
+                        >
                           <SelectTrigger id="subject">
                             <SelectValue placeholder="Select a subject" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="general">General Inquiry</SelectItem>
-                            <SelectItem value="technical">Technical Support</SelectItem>
-                            <SelectItem value="recipe">Recipe Submission</SelectItem>
-                            <SelectItem value="partnership">Partnership Opportunity</SelectItem>
-                            <SelectItem value="feedback">Feedback</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
+                            {subjects.map((subject) => (
+                              <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                                {subject.subject_name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -130,8 +189,8 @@ export default function ContactPage() {
                         />
                       </div>
 
-                      <Button type="submit" className="w-full">
-                        Send Message
+                      <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading ? "Sending..." : "Send Message"}
                       </Button>
                     </form>
                   </CardContent>
@@ -140,60 +199,82 @@ export default function ContactPage() {
 
               {/* Contact Information */}
               <div className="space-y-6">
-                <Card>
-                  <CardContent className="pt-6">
+                <Card className="py-0">
+                  <CardContent className="pt-5">
                     <div className="flex items-start gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <Mail className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground mb-1">Email Us</h3>
-                        <p className="text-sm text-muted-foreground">support@foodfusion.com</p>
-                        <p className="text-sm text-muted-foreground">partnerships@foodfusion.com</p>
+                        <h3 className="font-semibold text-foreground mb-1">
+                          Email Us
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          support@foodfusion.com
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          partnerships@foodfusion.com
+                        </p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardContent className="pt-6">
+                <Card className="py-0">
+                  <CardContent className="pt-5">
                     <div className="flex items-start gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <Phone className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground mb-1">Call Us</h3>
-                        <p className="text-sm text-muted-foreground">+1 (555) 123-4567</p>
-                        <p className="text-sm text-muted-foreground">Mon-Fri, 9am-6pm EST</p>
+                        <h3 className="font-semibold text-foreground mb-1">
+                          Call Us
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          +1 (555) 123-4567
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Mon-Fri, 9am-6pm EST
+                        </p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardContent className="pt-6">
+                <Card className="py-0">
+                  <CardContent className="pt-5">
                     <div className="flex items-start gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <MapPin className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground mb-1">Visit Us</h3>
-                        <p className="text-sm text-muted-foreground">123 Culinary Street</p>
-                        <p className="text-sm text-muted-foreground">Food District, NY 10001</p>
+                        <h3 className="font-semibold text-foreground mb-1">
+                          Visit Us
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          123 Culinary Street
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Food District, NY 10001
+                        </p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardContent className="pt-6">
+                <Card className="py-0">
+                  <CardContent className="pt-5">
                     <div className="flex items-start gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <Clock className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground mb-1">Response Time</h3>
-                        <p className="text-sm text-muted-foreground">We typically respond within 24-48 hours</p>
+                        <h3 className="font-semibold text-foreground mb-1">
+                          Response Time
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          We typically respond within 24-48 hours
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -207,39 +288,51 @@ export default function ContactPage() {
         <section className="py-16 bg-muted/30">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto">
-              <h2 className="text-3xl font-bold text-foreground mb-8 text-center">Frequently Asked Questions</h2>
+              <h2 className="text-3xl font-bold text-foreground mb-8 text-center">
+                Frequently Asked Questions
+              </h2>
               <div className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">How do I submit a recipe?</CardTitle>
+                    <CardTitle className="text-lg">
+                      How do I submit a recipe?
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground leading-relaxed">
-                      Simply create an account, navigate to the Community Cookbook page, and click the "Share Recipe"
-                      button. Fill in the details and your recipe will be shared with the community!
+                      Simply create an account, navigate to the Community
+                      Cookbook page, and click the "Share Recipe" button. Fill
+                      in the details and your recipe will be shared with the
+                      community!
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Is FoodFusion free to use?</CardTitle>
+                    <CardTitle className="text-lg">
+                      Is FoodFusion free to use?
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground leading-relaxed">
-                      Yes! FoodFusion is completely free to use. You can browse recipes, create an account, and share
-                      your own recipes without any cost.
+                      Yes! FoodFusion is completely free to use. You can browse
+                      recipes, create an account, and share your own recipes
+                      without any cost.
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Can I save my favorite recipes?</CardTitle>
+                    <CardTitle className="text-lg">
+                      Can I save my favorite recipes?
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground leading-relaxed">
-                      Once you create an account, you can like and save your favorite recipes for easy access later.
+                      Once you create an account, you can like and save your
+                      favorite recipes for easy access later.
                     </p>
                   </CardContent>
                 </Card>
@@ -251,5 +344,5 @@ export default function ContactPage() {
 
       <Footer />
     </div>
-  )
+  );
 }

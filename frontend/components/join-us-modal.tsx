@@ -23,11 +23,9 @@ export function JoinUsModal() {
   const { toast } = useToast()
 
   useEffect(() => {
-    // Check if this is the first visit and user is not authenticated
     if (typeof window !== "undefined" && !isAuthenticated) {
       const hasVisited = localStorage.getItem(FIRST_VISIT_KEY)
       if (!hasVisited) {
-        // Show modal after a short delay for better UX
         const timer = setTimeout(() => {
           setOpen(true)
         }, 1000)
@@ -79,7 +77,6 @@ export function JoinUsModal() {
 
   const handleClose = () => {
     setOpen(false)
-    // Mark that user has visited even if they close without registering
     localStorage.setItem(FIRST_VISIT_KEY, "true")
   }
 
