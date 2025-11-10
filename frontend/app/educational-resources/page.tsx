@@ -16,7 +16,7 @@ const resources = [
     type: "PDF",
     category: "General",
     icon: FileText,
-    downloadUrl: "#",
+    downloadUrl: "/knife-skills.pdf",
   },
   {
     id: 2,
@@ -25,7 +25,7 @@ const resources = [
     type: "Video",
     category: "Solar",
     icon: Video,
-    downloadUrl: "#",
+    downloadUrl: "/food-safety.pdf",
   },
   {
     id: 3,
@@ -34,7 +34,7 @@ const resources = [
     type: "Infographic",
     category: "Wind",
     icon: ImageIcon,
-    downloadUrl: "#",
+    downloadUrl: "/knife-skills.pdf",
   },
   {
     id: 4,
@@ -43,7 +43,7 @@ const resources = [
     type: "PDF",
     category: "General",
     icon: FileText,
-    downloadUrl: "#",
+    downloadUrl: "/food-safety.pdf",
   },
   {
     id: 5,
@@ -52,7 +52,7 @@ const resources = [
     type: "Video",
     category: "Hydro",
     icon: Video,
-    downloadUrl: "#",
+    downloadUrl: "/knife-skills.pdf",
   },
   {
     id: 6,
@@ -61,7 +61,7 @@ const resources = [
     type: "PDF",
     category: "Geothermal",
     icon: FileText,
-    downloadUrl: "#",
+    downloadUrl: "/food-safety.pdf",
   },
 ]
 
@@ -165,9 +165,11 @@ export default function EducationalResourcesPage() {
                       <CardDescription className="leading-relaxed">{resource.description}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <Button className="w-full bg-transparent" variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
+                      <Button className="w-full bg-transparent" variant="outline" asChild>
+                        <a href={resource.downloadUrl} download>
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </a>
                       </Button>
                     </CardContent>
                   </Card>

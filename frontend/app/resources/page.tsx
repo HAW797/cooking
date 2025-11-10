@@ -3,7 +3,7 @@ import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { BookOpen, Utensils, Scale, Timer, Thermometer, Users } from "lucide-react"
+import { BookOpen, Utensils, Scale, Timer, Thermometer, Users, Download } from "lucide-react"
 import Link from "next/link"
 
 export default function ResourcesPage() {
@@ -49,8 +49,11 @@ export default function ResourcesPage() {
                       Master basic cuts like julienne, dice, and chiffonade. Improve your speed and safety in the
                       kitchen.
                     </p>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Read Guide
+                    <Button variant="outline" className="w-full bg-transparent" asChild>
+                      <a href="/knife-skills.pdf" download>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -61,17 +64,20 @@ export default function ResourcesPage() {
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                     <Thermometer className="h-6 w-6 text-primary" />
                   </div>
-                  <CardTitle>Temperature Guide</CardTitle>
-                  <CardDescription>Perfect doneness for every type of protein</CardDescription>
+                  <CardTitle>Food Safety Guide</CardTitle>
+                  <CardDescription>Essential food safety and handling practices</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <Badge variant="secondary">Tip</Badge>
+                    <Badge variant="secondary">Guide</Badge>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Internal temperature charts for beef, pork, poultry, and fish. Never overcook or undercook again.
+                      Learn proper food storage, temperature control, and hygiene practices to keep your kitchen safe.
                     </p>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Read Guide
+                    <Button variant="outline" className="w-full bg-transparent" asChild>
+                      <a href="/food-safety.pdf" download>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -91,8 +97,11 @@ export default function ResourcesPage() {
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       Learn the science behind baking, from proper measuring to understanding gluten development.
                     </p>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Read Guide
+                    <Button variant="outline" className="w-full bg-transparent" asChild>
+                      <a href="/knife-skills.pdf" download>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -113,8 +122,11 @@ export default function ResourcesPage() {
                       Save time and money with smart meal prep techniques. Includes storage tips and batch cooking
                       methods.
                     </p>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Read Guide
+                    <Button variant="outline" className="w-full bg-transparent" asChild>
+                      <a href="/food-safety.pdf" download>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -134,8 +146,11 @@ export default function ResourcesPage() {
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       Comprehensive guide to herbs and spices, including storage tips and flavor combinations.
                     </p>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Read Guide
+                    <Button variant="outline" className="w-full bg-transparent" asChild>
+                      <a href="/knife-skills.pdf" download>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
@@ -156,8 +171,11 @@ export default function ResourcesPage() {
                       Plan and execute memorable gatherings with our hosting guides, from menu planning to table
                       settings.
                     </p>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Read Guide
+                    <Button variant="outline" className="w-full bg-transparent" asChild>
+                      <a href="/food-safety.pdf" download>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </a>
                     </Button>
                   </div>
                 </CardContent>
