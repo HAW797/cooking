@@ -1,63 +1,65 @@
+"use client"
+
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Download, FileText, Video, ImageIcon, ChefHat, Utensils, BookOpen } from "lucide-react"
+import { Download, FileText, Video, ImageIcon, Leaf, Sun, Wind, Zap } from "lucide-react"
 import Image from "next/image"
 
 const resources = [
   {
     id: 1,
-    title: "Knife Skills Fundamentals",
-    description: "Complete guide to proper knife techniques and cutting methods for home cooks",
+    title: "Introduction to Renewable Energy",
+    description: "A comprehensive guide covering solar, wind, hydro, and geothermal energy sources",
     type: "PDF",
-    category: "Technique",
-    icon: FileText,
-    downloadUrl: "/downloads/knife-skills.pdf",
-  },
-  {
-    id: 2,
-    title: "Food Safety Essentials",
-    description: "Important guidelines for safe food handling, storage, and preparation",
-    type: "PDF",
-    category: "Safety",
-    icon: FileText,
-    downloadUrl: "/downloads/food-safety.pdf",
-  },
-  {
-    id: 3,
-    title: "Cooking Methods Overview",
-    description: "Comprehensive guide to different cooking techniques and when to use them",
-    type: "PDF",
-    category: "Technique",
+    category: "General",
     icon: FileText,
     downloadUrl: "#",
   },
   {
+    id: 2,
+    title: "Solar Energy Basics",
+    description: "Understanding photovoltaic systems and solar thermal technology",
+    type: "Video",
+    category: "Solar",
+    icon: Video,
+    downloadUrl: "#",
+  },
+  {
+    id: 3,
+    title: "Wind Power Infographic",
+    description: "Visual guide to how wind turbines generate electricity",
+    type: "Infographic",
+    category: "Wind",
+    icon: ImageIcon,
+    downloadUrl: "#",
+  },
+  {
     id: 4,
-    title: "Kitchen Equipment Guide",
-    description: "Essential tools every home cook should have and how to use them effectively",
+    title: "Sustainable Energy Solutions",
+    description: "Practical applications of renewable energy in daily life",
     type: "PDF",
-    category: "Equipment",
+    category: "General",
     icon: FileText,
     downloadUrl: "#",
   },
   {
     id: 5,
-    title: "Ingredient Substitutions",
-    description: "Quick reference for common ingredient swaps and alternatives",
-    type: "PDF",
-    category: "Reference",
-    icon: FileText,
+    title: "Hydroelectric Power Explained",
+    description: "How water flow is converted into clean electricity",
+    type: "Video",
+    category: "Hydro",
+    icon: Video,
     downloadUrl: "#",
   },
   {
     id: 6,
-    title: "Meal Planning Templates",
-    description: "Printable templates to organize your weekly meal planning",
+    title: "Geothermal Energy Guide",
+    description: "Harnessing Earth's internal heat for power generation",
     type: "PDF",
-    category: "Planning",
+    category: "Geothermal",
     icon: FileText,
     downloadUrl: "#",
   },
@@ -66,24 +68,24 @@ const resources = [
 const videos = [
   {
     id: 1,
-    title: "How to Make Perfect Pasta",
-    thumbnail: "/margherita-pizza-fresh-basil.jpg",
-    duration: "15:00",
-    category: "Tutorial",
+    title: "The Future of Solar Energy",
+    thumbnail: "/solar-panels-future.jpg",
+    duration: "12:45",
+    category: "Solar",
   },
   {
     id: 2,
-    title: "Mastering Knife Skills",
-    thumbnail: "/cooking-kitchen-food-prep.png",
-    duration: "20:00",
-    category: "Technique",
+    title: "Wind Farms: How They Work",
+    thumbnail: "/wind-turbine-farm.png",
+    duration: "8:30",
+    category: "Wind",
   },
   {
     id: 3,
-    title: "Bread Baking Basics",
-    thumbnail: "/meal-prep-guide.jpg",
-    duration: "25:00",
-    category: "Tutorial",
+    title: "Renewable Energy Revolution",
+    thumbnail: "/renewable-energy-landscape.png",
+    duration: "15:20",
+    category: "General",
   },
 ]
 
@@ -93,14 +95,52 @@ export default function EducationalResourcesPage() {
       <Header />
 
       <main className="flex-1">
-        <section className="py-16 bg-muted/30">
+        <section className="py-10 bg-muted/30">
           <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center">
-              <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 text-balance">Educational Resources</h1>
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                Explore our collection of downloadable guides, reference materials, and video tutorials to enhance your
-                culinary knowledge and skills.
-              </p>
+            <h1 className="text-4xl font-bold text-foreground mb-4 text-balance">Educational Resources</h1>
+            <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
+              Explore our collection of downloadable resources, infographics, and videos on renewable energy topics.
+              Learn about sustainable energy solutions and their impact on our future.
+            </p>
+          </div>
+        </section>
+
+        <section className="py-12 border-b border-border">
+          <div className="container mx-auto px-4">
+            <h2 className="text-2xl font-bold text-foreground mb-6">Energy Categories</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card className="text-center hover:shadow-lg transition-shadow cursor-pointer">
+                <CardContent className="pt-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3">
+                    <Sun className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-semibold">Solar Energy</h3>
+                </CardContent>
+              </Card>
+              <Card className="text-center hover:shadow-lg transition-shadow cursor-pointer">
+                <CardContent className="pt-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3">
+                    <Wind className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-semibold">Wind Power</h3>
+                </CardContent>
+              </Card>
+              <Card className="text-center hover:shadow-lg transition-shadow cursor-pointer">
+                <CardContent className="pt-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3">
+                    <Zap className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-semibold">Hydroelectric</h3>
+                </CardContent>
+              </Card>
+              <Card className="text-center hover:shadow-lg transition-shadow cursor-pointer">
+                <CardContent className="pt-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3">
+                    <Leaf className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-semibold">Geothermal</h3>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>
@@ -125,11 +165,9 @@ export default function EducationalResourcesPage() {
                       <CardDescription className="leading-relaxed">{resource.description}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <Button className="w-full bg-transparent" variant="outline" asChild>
-                        <a href={resource.downloadUrl} download>
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
-                        </a>
+                      <Button className="w-full bg-transparent" variant="outline">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
                       </Button>
                     </CardContent>
                   </Card>
@@ -175,12 +213,13 @@ export default function EducationalResourcesPage() {
 
         <section className="py-16 bg-primary text-primary-foreground">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold mb-4 text-balance">Ready to Put Your Knowledge to Practice?</h2>
+            <h2 className="text-3xl font-bold mb-4 text-balance">Want to Learn More?</h2>
             <p className="text-lg mb-8 max-w-2xl mx-auto leading-relaxed opacity-90">
-              Check out our culinary resources for hands-on cooking techniques and kitchen tips
+              Subscribe to our newsletter to receive the latest educational resources and updates on renewable energy
+              innovations
             </p>
-            <Button size="lg" variant="secondary" asChild>
-              <a href="/resources">View Culinary Resources</a>
+            <Button size="lg" variant="secondary">
+              Subscribe Now
             </Button>
           </div>
         </section>

@@ -17,17 +17,20 @@ CREATE TABLE IF NOT EXISTS user (
 
 CREATE TABLE IF NOT EXISTS cuisine_type (
     cuisine_type_id INT AUTO_INCREMENT PRIMARY KEY,
-    cuisine_name VARCHAR(100) NOT NULL UNIQUE
+    cuisine_name VARCHAR(100) NOT NULL UNIQUE,
+    INDEX idx_cuisine_name (cuisine_name)
 );
 
 CREATE TABLE IF NOT EXISTS dietary (
     dietary_id INT AUTO_INCREMENT PRIMARY KEY,
-    dietary_name VARCHAR(100) NOT NULL UNIQUE
+    dietary_name VARCHAR(100) NOT NULL UNIQUE,
+    INDEX idx_dietary_name (dietary_name)
 );
 
 CREATE TABLE IF NOT EXISTS difficulty (
     difficulty_id INT AUTO_INCREMENT PRIMARY KEY,
-    difficulty_level VARCHAR(50) NOT NULL UNIQUE
+    difficulty_level VARCHAR(50) NOT NULL UNIQUE,
+    INDEX idx_difficulty_level (difficulty_level)
 );
 
 CREATE TABLE IF NOT EXISTS ingredient (
@@ -217,6 +220,12 @@ INSERT INTO ingredient (ingredient_name) VALUES
     ('Beef broth'), ('Gruyère cheese'), ('Baguette'), ('Thyme'),
     ('Rice'), ('Beef or tofu'), ('Spinach'), ('Carrots'), ('Gochujang'), ('Egg')
 ON DUPLICATE KEY UPDATE ingredient_name = VALUES(ingredient_name);
+
+DELETE FROM recipe WHERE recipe_title IN (
+    'Classic Margherita Pizza', 'Thai Green Curry', 'Chocolate Lava Cake', 'Caesar Salad',
+    'Beef Tacos', 'Sushi Rolls', 'Greek Moussaka', 'Pad Thai', 'Chicken Tikka Masala',
+    'Vegan Buddha Bowl', 'French Onion Soup', 'Korean Bibimbap'
+);
 
 INSERT INTO recipe (
     recipe_title, description, image_url, cuisine_type_id, dietary_id, difficulty_id, 
