@@ -115,10 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     // Check if account is locked
     if (isAccountLocked()) {
-      const remainingMs = getAuthLockoutTime()
       return { 
         success: false, 
-        message: 'Your account is locked', 
+        message: 'Your account is locked. Please wait.', 
         isLocked: true,
         attemptsRemaining: 0
       }
@@ -197,7 +196,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await authLogout()
     setUser(null)
     setIsAuthenticated(false)
-    setLockoutUntil(null)
+    const state = getAuthState()
+    setLockoutUntil(state.lockoutUntil)
   }
 
   return (

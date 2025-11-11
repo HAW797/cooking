@@ -102,15 +102,11 @@ export async function login(
   rememberMe: boolean = false
 ): Promise<{ success: boolean; message: string; user?: User }> {
   if (isAccountLocked()) {
-    const remainingMs = getRemainingLockoutTime()
-    const remainingMinutes = Math.ceil(remainingMs / 60000)
     return {
       success: false,
-      message: `Account locked. Please try again in ${remainingMinutes} minute${remainingMinutes !== 1 ? "s" : ""}.`,
+      message: 'Your account is locked. Please wait.',
     }
   }
-
-  const state = getAuthState()
 
   try {
     const response = await authService.login({ email, password, remember_me: rememberMe })
@@ -139,22 +135,31 @@ export async function login(
     throw new Error("Invalid response from server")
   } catch (error) {
     const apiError = error as ApiError
-    const newFailedAttempts = state.failedAttempts + 1
-    const shouldLockout = newFailedAttempts >= MAX_FAILED_ATTEMPTS
+    const currentState = getAuthState()
+    let newFailedAttempts = currentState.failedAttempts + 1
+    let lockoutUntil: number | null = null
+    const serverLocked = apiError.status === 423
+
+    if (serverLocked) {
+      newFailedAttempts = MAX_FAILED_ATTEMPTS
+      lockoutUntil = Date.now() + LOCKOUT_DURATION
+    } else if (newFailedAttempts >= MAX_FAILED_ATTEMPTS) {
+      lockoutUntil = Date.now() + LOCKOUT_DURATION
+    }
 
     setAuthState({
       failedAttempts: newFailedAttempts,
-      lockoutUntil: shouldLockout ? Date.now() + LOCKOUT_DURATION : null,
+      lockoutUntil,
     })
 
-    if (shouldLockout) {
+    if (lockoutUntil) {
       return {
         success: false,
-        message: `Too many failed attempts. Account locked for 3 minutes.`,
+        message: 'Your account is locked. Please wait.',
       }
     }
 
-    const attemptsRemaining = MAX_FAILED_ATTEMPTS - newFailedAttempts
+    const attemptsRemaining = Math.max(0, MAX_FAILED_ATTEMPTS - newFailedAttempts)
     const errorMessage = apiError.message || "Invalid credentials"
     
     return {
@@ -217,10 +222,13 @@ export async function logout(): Promise<void> {
     console.error("Logout API call failed:", error)
   } finally {
     removeCsrfToken()
-    
+
+    const state = getAuthState()
+    const lockoutStillActive = !!state.lockoutUntil && state.lockoutUntil > Date.now()
+
     setAuthState({
-      failedAttempts: 0,
-      lockoutUntil: null,
+      failedAttempts: lockoutStillActive ? state.failedAttempts : 0,
+      lockoutUntil: lockoutStillActive ? state.lockoutUntil : null,
     })
   }
 }

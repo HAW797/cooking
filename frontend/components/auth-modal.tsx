@@ -81,6 +81,10 @@ export function AuthModal({
     setLoading(true);
     setErrors({}); // Clear previous errors
     setServerError(""); // Clear previous server error
+    setAttemptsRemaining(null); // Hide previous attempt notice while submitting
+    if (!isLocked) {
+      setCountdown(0);
+    }
 
     try {
       if (mode === "login") {
@@ -169,23 +173,28 @@ export function AuthModal({
             <div className="mt-1 bg-red-500/10 p-2 rounded-md border border-red-500/20 text-center">
               <div className="flex items-center gap-2 justify-center">
                 <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
-                <p className="text-sm text-red-500">
-                  {isLocked ? "Your account is locked. Please wait" : "Invalid credentials."}
-                  {isLocked && countdown > 0 && (
-                    <span className="font-mono font-bold ml-1">
-                      {formatCountdown(countdown)}
-                    </span>
-                  )}
-                  {attemptsRemaining !== null && attemptsRemaining > 0 && (
-                    <span className="ml-2">
-                      <span className="font-bold">
-                        {attemptsRemaining} attempt
-                        {attemptsRemaining !== 1 ? "s" : ""}
+                <div className="text-sm text-red-500">
+                  <p>
+                    {errors.password
+                      ? errors.password
+                      : isLocked
+                        ? "Your account is locked. Please wait"
+                        : "Invalid credentials."}
+                    {isLocked && countdown > 0 && (
+                      <span className="font-mono font-bold ml-1">
+                        {formatCountdown(countdown)}
                       </span>
-                      {" "}remaining
-                    </span>
+                    )}
+                  </p>
+                  {!errors.password && !isLocked && attemptsRemaining !== null && attemptsRemaining > 0 && (
+                    <div className="mt-1">
+                      <span className="font-bold">
+                        {attemptsRemaining} attempt{attemptsRemaining !== 1 ? "s" : ""}
+                      </span>{" "}
+                      remaining
+                    </div>
                   )}
-                </p>
+                </div>
               </div>
             </div>
           )}
